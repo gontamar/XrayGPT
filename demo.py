@@ -73,7 +73,7 @@ def gradio_reset(chat_state, img_list):
         chat_state.messages = []
     if img_list is not None:
         img_list = []
-    return None, gr.update(value=None, interactive=True), gr.update(placeholder='Please upload your image first', interactive=False),gr.update(value="Upload & Start Chat", interactive=True), chat_state, img_list
+    return None, gr.update(value=None, interactive=True), gr.update(placeholder='Please upload your image first', interactive=False), gr.update(value="Upload & Start Chat", interactive=True), chat_state, img_list
 
 def upload_img(gr_img, text_input, chat_state):
     if gr_img is None:
@@ -160,48 +160,48 @@ with gr.Blocks() as demo:
             text_input = gr.Textbox(label='User', placeholder='Please upload your X-Ray image.', interactive=False)
 
 
-   with gr.Row():
-    example_xrays = gr.Dataset(components=[image], label="X-Ray Examples",
-                               samples=[
-                                   [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img1.png")],
-                                   [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img2.png")],
-                                   [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img3.png")],
-                                   [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img4.png")],
-                                   [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img5.png")],
-                                   [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img6.png")],
-                                   [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img7.png")],
-                                   [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img8.png")],
-                                   [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img9.png")],
+    with gr.Row():
+        example_xrays = gr.Dataset(components=[image], label="X-Ray Examples",
+                                   samples=[
+                                       [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img1.png")],
+                                       [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img2.png")],
+                                       [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img3.png")],
+                                       [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img4.png")],
+                                       [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img5.png")],
+                                       [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img6.png")],
+                                       [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img7.png")],
+                                       [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img8.png")],
+                                       [os.path.join(os.path.dirname(__file__), "/kaggle/working/XrayGPT/images/example_test_images/img9.png")],
                                    ])
-        
 
     with gr.Row():
         example_texts = gr.Dataset(components=[gr.Textbox(visible=False)],
-                                    label="Prompt Examples",
-                                    samples=[
-                                        ["Describe the given chest x-ray image in detail."],
-                                        ["Take a look at this chest x-ray and describe the findings and impression."],
-                                        ["Could you provide a detailed description of the given x-ray image?"],
-                                        ["Describe the given chest x-ray image as detailed as possible."],
-                                        ["What are the key findings in this chest x-ray image?"],
-                                        ["Could you highlight any abnormalities or concerns in this chest x-ray image?"],
-                                        ["What specific features of the lungs and heart are visible in this chest x-ray image?"],
-                                        ["What is the most prominent feature visible in this chest x-ray image, and how is it indicative of the patient's health?"],
-                                        ["Based on the findings in this chest x-ray image, what is the overall impression?"],
-                                    ],)
-    
+                                   label="Prompt Examples",
+                                   samples=[
+                                       ["Describe the given chest x-ray image in detail."],
+                                       ["Take a look at this chest x-ray and describe the findings and impression."],
+                                       ["Could you provide a detailed description of the given x-ray image?"],
+                                       ["Describe the given chest x-ray image as detailed as possible."],
+                                       ["What are the key findings in this chest x-ray image?"],
+                                       ["Could you highlight any abnormalities or concerns in this chest x-ray image?"],
+                                       ["What specific features of the lungs and heart are visible in this chest x-ray image?"],
+                                       ["What is the most prominent feature visible in this chest x-ray image, and how is it indicative of the patient's health?"],
+                                       ["Based on the findings in this chest x-ray image, what is the overall impression?"],
+                                   ],)
+
     example_xrays.click(fn=set_example_xray, inputs=example_xrays, outputs=image)
 
     upload_button.click(upload_img, [image, text_input, chat_state], [image, text_input, upload_button, chat_state, img_list])
-    
+
     example_texts.click(set_example_text_input, inputs=example_texts, outputs=text_input).then(
         gradio_ask, [text_input, chatbot, chat_state], [text_input, chatbot, chat_state]).then(
         gradio_answer, [chatbot, chat_state, img_list, num_beams, temperature], [chatbot, chat_state, img_list]
     )
-    
+
     text_input.submit(gradio_ask, [text_input, chatbot, chat_state], [text_input, chatbot, chat_state]).then(
         gradio_answer, [chatbot, chat_state, img_list, num_beams, temperature], [chatbot, chat_state, img_list]
     )
+    
     clear.click(gradio_reset, [chat_state, img_list], [chatbot, image, text_input, upload_button, chat_state, img_list], queue=False)
     
     gr.Markdown(disclaimer)
