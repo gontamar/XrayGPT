@@ -13,7 +13,7 @@ model:
   num_query_token: 32
 
   # Vicuna
-  llama_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  llama_model: "lmsys/vicuna-7b-v1.5"
 
   # generation configs
   prompt: ""
