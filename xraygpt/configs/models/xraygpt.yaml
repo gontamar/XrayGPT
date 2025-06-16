@@ -13,7 +13,7 @@ model:
   num_query_token: 32
 
   # Vicuna
-  llama_model: "/kaggle/input/xgpt/pytorch/default/1/Vicuna_Radiology_fp16"
+  llama_model: "/kaggle/input/medclip2/pytorch/default/1/weights.pt"
 
   # generation configs
   prompt: ""
