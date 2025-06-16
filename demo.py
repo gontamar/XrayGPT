@@ -130,7 +130,7 @@ with gr.Blocks() as demo:
     gr.Markdown(description)
 
     with gr.Row():
-        with gr.Column(scale=0.5):
+        with gr.Column(scale=1):  # Changed scale to integer value
             image = gr.Image(type="pil")
             upload_button = gr.Button(value="Upload and Ask Queries", interactive=True, variant="primary")
             clear = gr.Button("Reset")
@@ -206,4 +206,5 @@ with gr.Blocks() as demo:
     
     gr.Markdown(disclaimer)
 
-demo.launch(share=True, enable_queue=True)
+# Changed `enable_queue=True` to `queue=True`
+demo.launch(share=True, queue=True)
