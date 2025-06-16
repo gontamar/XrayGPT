@@ -13,7 +13,7 @@ model:
   num_query_token: 32
 
   # Vicuna
-  llama_model: "/kaggle/input/gguf-llama/keras/default/1/Llama-3.1-8B-UltraMedical.i1-Q4_K_M.gguf"
+  llama_model: "/kaggle/input/xgpt/pytorch/default/1/Vicuna_Radiology_fp16"
 
   # generation configs
   prompt: ""
