@@ -13,7 +13,7 @@ model:
   num_query_token: 32
 
   # Vicuna
-  llama_model: "MRAIRR/minillama3_8b"
+  llama_model: "/kaggle/input/xgpt/pytorch/default/1/Vicuna_Radiology_fp16"
 
   # generation configs
   prompt: ""
