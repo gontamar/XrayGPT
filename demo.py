@@ -176,19 +176,19 @@ with gr.Blocks() as demo:
 
     with gr.Row():
         example_texts = gr.Dataset(components=[gr.Textbox(visible=False)],
-                                   label="Prompt Examples",
-                                   samples=[
-                                       ["Describe the given chest x-ray image in detail."],
-                                       ["Take a look at this chest x-ray and describe the findings and impression."],
-                                       ["Could you provide a detailed description of the given x-ray image?"],
-                                       ["Describe the given chest x-ray image as detailed as possible."],
-                                       ["What are the key findings in this chest x-ray image?"],
-                                       ["Could you highlight any abnormalities or concerns in this chest x-ray image?"],
-                                       ["What specific features of the lungs and heart are visible in this chest x-ray image?"],
-                                       ["What is the most prominent feature visible in this chest x-ray image, and how is it indicative of the patient's health?"],
-                                       ["Based on the findings in this chest x-ray image, what is the overall impression?"],
-                                   ],)
-
+                                    label="Prompt Examples",
+                                    samples=[
+                                        ["Describe the given chest x-ray image in detail."],
+                                        ["Take a look at this chest x-ray and describe the findings and impression."],
+                                        ["Could you provide a detailed description of the given x-ray image?"],
+                                        ["Describe the given chest x-ray image as detailed as possible."],
+                                        ["What are the key findings in this chest x-ray image?"],
+                                        ["Could you highlight any abnormalities or concerns in this chest x-ray image?"],
+                                        ["What specific features of the lungs and heart are visible in this chest x-ray image?"],
+                                        ["What is the most prominent feature visible in this chest x-ray image, and how is it indicative of the patient's health?"],
+                                        ["Based on the findings in this chest x-ray image, what is the overall impression?"],
+                                    ],)
+    
     example_xrays.click(fn=set_example_xray, inputs=example_xrays, outputs=image)
 
     upload_button.click(upload_img, [image, text_input, chat_state], [image, text_input, upload_button, chat_state, img_list])
@@ -205,5 +205,5 @@ with gr.Blocks() as demo:
     
     gr.Markdown(disclaimer)
 
-# Changed `queue=True` to `allow_queue=True`
-demo.launch(share=True, allow_queue=True)
+# Launch the Gradio demo
+demo.launch(share=True)
