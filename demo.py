@@ -116,6 +116,7 @@ disclaimer = """
             """
 
 def set_example_xray(example: list) -> dict:
+    # Update the image component with the selected example
     return gr.Image.update(value=example[0])
 
 
@@ -189,20 +190,4 @@ with gr.Blocks() as demo:
                                         ["Based on the findings in this chest x-ray image, what is the overall impression?"],
                                     ],)
     
-    example_xrays.click(fn=set_example_xray, inputs=example_xrays, outputs=example_xrays.components)
-
-    upload_button.click(upload_img, [image, text_input, chat_state], [image, text_input, upload_button, chat_state, img_list])
-    
-    example_texts.click(set_example_text_input, inputs=example_texts, outputs=text_input).then(
-        gradio_ask, [text_input, chatbot, chat_state], [text_input, chatbot, chat_state]).then(
-        gradio_answer, [chatbot, chat_state, img_list, num_beams, temperature], [chatbot, chat_state, img_list]
-    )
-    
-    text_input.submit(gradio_ask, [text_input, chatbot, chat_state], [text_input, chatbot, chat_state]).then(
-        gradio_answer, [chatbot, chat_state, img_list, num_beams, temperature], [chatbot, chat_state, img_list]
-    )
-    clear.click(gradio_reset, [chat_state, img_list], [chatbot, image, text_input, upload_button, chat_state, img_list], queue=False)
-    
-    gr.Markdown(disclaimer)
-
-demo.launch(share=True, enable_queue=True)
+    example_xrays.click(fn=set_example_xray, inputs=example_xrays, outputs
