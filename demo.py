@@ -160,7 +160,7 @@ with gr.Blocks() as demo:
             text_input = gr.Textbox(label='User', placeholder='Please upload your X-Ray image.', interactive=False)
 
 
-    with gr.Row():
+     with gr.Row():
         example_xrays = gr.Dataset(components=[image], label="X-Ray Examples",
                                     samples=[
                                         [os.path.join(os.path.dirname(__file__), "images/example_test_images/img1.png")],
