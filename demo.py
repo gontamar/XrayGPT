@@ -156,7 +156,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             chat_state = gr.State()
             img_list = gr.State()
-            chatbot = gr.Chatbot(label='XrayGPT')
+            chatbot = gr.Chatbot(label='XrayGPT', type='messages')  # Set type='messages'
             text_input = gr.Textbox(label='User', placeholder='Please upload your X-Ray image.', interactive=False)
 
 
@@ -192,19 +192,18 @@ with gr.Blocks() as demo:
     example_xrays.click(fn=set_example_xray, inputs=example_xrays, outputs=image)
 
     upload_button.click(upload_img, [image, text_input, chat_state], [image, text_input, upload_button, chat_state, img_list])
-
+    
     example_texts.click(set_example_text_input, inputs=example_texts, outputs=text_input).then(
         gradio_ask, [text_input, chatbot, chat_state], [text_input, chatbot, chat_state]).then(
         gradio_answer, [chatbot, chat_state, img_list, num_beams, temperature], [chatbot, chat_state, img_list]
     )
-
+    
     text_input.submit(gradio_ask, [text_input, chatbot, chat_state], [text_input, chatbot, chat_state]).then(
         gradio_answer, [chatbot, chat_state, img_list, num_beams, temperature], [chatbot, chat_state, img_list]
     )
-    
     clear.click(gradio_reset, [chat_state, img_list], [chatbot, image, text_input, upload_button, chat_state, img_list], queue=False)
     
     gr.Markdown(disclaimer)
 
-# Changed `enable_queue=True` to `queue=True`
-demo.launch(share=True, queue=True)
+# Changed `queue=True` to `allow_queue=True`
+demo.launch(share=True, allow_queue=True)
