@@ -87,6 +87,7 @@ def gradio_ask(user_message, chatbot, chat_state):
     if len(user_message) == 0:
         return gr.update(interactive=True, placeholder='Input should not be empty!'), chatbot, chat_state
     chat.ask(user_message, chat_state)
+    # Append user message and placeholder assistant message (to be filled by gradio_answer)
     chatbot = chatbot + [{"role": "user", "content": user_message}, {"role": "assistant", "content": None}]
     return '', chatbot, chat_state
 
@@ -100,6 +101,7 @@ def gradio_answer(chatbot, chat_state, img_list, num_beams, temperature):
         max_new_tokens=300,
         max_length=2000,
     )[0]
+    # Update last assistant message content
     for msg in reversed(chatbot):
         if msg["role"] == "assistant":
             msg["content"] = llm_message
@@ -122,11 +124,6 @@ disclaimer = """
 
             """
 
-def set_example_xray(example: list) -> dict:
-    # Update the image component with the selected example
-    return gr.Image.update(value=example[0])
-
-
 def set_example_text_input(example_text: list) -> dict:
     return gr.Textbox.update(value=example_text[0])
 
@@ -147,7 +144,7 @@ with gr.Blocks() as demo:
                 value=1,
                 step=1,
                 interactive=True,
-                label="Beam search numbers",
+                label="beam search numbers",
             )
             
             temperature = gr.Slider(
@@ -162,9 +159,8 @@ with gr.Blocks() as demo:
         with gr.Column():
             chat_state = gr.State()
             img_list = gr.State()
-            chatbot = gr.Chatbot(label='XrayGPT', type='messages')
+            chatbot = gr.Chatbot(label='XrayGPT', type='messages')  # type='messages' expects dicts with role & content
             text_input = gr.Textbox(label='User', placeholder='Please upload your X-Ray image.', interactive=False)
-
 
     with gr.Row():
         example_xrays = gr.Examples(
@@ -200,19 +196,44 @@ with gr.Blocks() as demo:
             label="Prompt Examples",
         )
     
-    example_xrays.click(fn=set_example_xray, inputs=example_xrays, outputs=image)
-
-    upload_button.click(upload_img, [image, text_input, chat_state], [image, text_input, upload_button, chat_state, img_list])
+    # Connect events and buttons
     
-    example_texts.click(set_example_text_input, inputs=example_texts, outputs=text_input).then(
-        gradio_ask, [text_input, chatbot, chat_state], [text_input, chatbot, chat_state]).then(
-        gradio_answer, [chatbot, chat_state, img_list, num_beams, temperature], [chatbot, chat_state, img_list]
+    upload_button.click(
+        upload_img, 
+        inputs=[image, text_input, chat_state], 
+        outputs=[image, text_input, upload_button, chat_state, img_list]
     )
     
-    text_input.submit(gradio_ask, [text_input, chatbot, chat_state], [text_input, chatbot, chat_state]).then(
-        gradio_answer, [chatbot, chat_state, img_list, num_beams, temperature], [chatbot, chat_state, img_list]
+    # When user submits text input
+    text_input.submit(
+        gradio_ask, 
+        inputs=[text_input, chatbot, chat_state], 
+        outputs=[text_input, chatbot, chat_state]
+    ).then(
+        gradio_answer, 
+        inputs=[chatbot, chat_state, img_list, num_beams, temperature], 
+        outputs=[chatbot, chat_state, img_list]
     )
-    clear.click(gradio_reset, [chat_state, img_list], [chatbot, image, text_input, upload_button, chat_state, img_list], queue=False)
+    
+    # When user selects an example prompt
+    example_texts.select(
+        set_example_text_input, inputs=[example_texts], outputs=[text_input]
+    ).then(
+        gradio_ask, 
+        inputs=[text_input, chatbot, chat_state], 
+        outputs=[text_input, chatbot, chat_state]
+    ).then(
+        gradio_answer, 
+        inputs=[chatbot, chat_state, img_list, num_beams, temperature], 
+        outputs=[chatbot, chat_state, img_list]
+    )
+    
+    clear.click(
+        gradio_reset, 
+        inputs=[chat_state, img_list], 
+        outputs=[chatbot, image, text_input, upload_button, chat_state, img_list], 
+        queue=False
+    )
     
     gr.Markdown(disclaimer)
 
