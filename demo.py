@@ -88,7 +88,7 @@ def gradio_ask(user_message, chatbot, chat_state):
         return gr.update(interactive=True, placeholder='Input should not be empty!'), chatbot, chat_state
     chat.ask(user_message, chat_state)
     # Append user message and placeholder assistant message (to be filled by gradio_answer)
-    chatbot = chatbot + [{"role": "user", "content": user_message}, {"role": "assistant", "content": None}]
+    chatbot = chatbot + [{"role": "user", "content": user_message}, {"role": "assistant", "content": "..."}]
     return '', chatbot, chat_state
 
 
@@ -125,13 +125,14 @@ disclaimer = """
             """
 
 def set_example_xray(example: list) -> dict:
-    # Return a dictionary to update the image component
-    return {"value": example[0]}
+    # Update the image component with the selected example
+    return gr.Image.update(value=example[0])
 
 
 def set_example_text_input(example_text: list) -> dict:
-    return {"value": example_text[0]}
+    return gr.update(value=example_text[0])
 
+# TODO show examples below
 
 with gr.Blocks() as demo:
     gr.Markdown(title)
