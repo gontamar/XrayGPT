@@ -110,7 +110,7 @@ def gradio_answer(chatbot, chat_state, img_list, num_beams, temperature):
         chatbot.append({"role": "assistant", "content": llm_message})
     return chatbot, chat_state, img_list
 
-title = """<h1 align="center">Demo of XrayGPT</h1>"""
+title = """<h1 align="center">Demo of LTTS XrayGPT</h1>"""
 description = """<h3>Upload your X-Ray images and start asking queries!</h3>"""
 disclaimer = """ 
             <h1 >Terms of Use:</h1>
@@ -120,7 +120,7 @@ disclaimer = """
                 <li>We strive to provide accurate and helpful results through XrayGPT. However, it is important to understand that we do not make any explicit warranties or representations regarding the effectiveness, reliability, or completeness of the results provided. Our aim is to continually improve and refine the Service to provide the best possible assistance to medical professionals.</li>
             </ul>
             <hr> 
-            <h3 align="center">Designed and Developed by IVAL Lab, MBZUAI</h3>
+            <h3 align="center">Designed and Developed by LTTS</h3>
 
             """
 
