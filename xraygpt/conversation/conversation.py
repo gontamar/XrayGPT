@@ -204,19 +204,28 @@ class Chat:
         # self.conv.append_message(self.conv.roles[1], msg)
         return msg
 
-    def get_context_emb(self, conv, img_list):
-        prompt = conv.get_prompt()
-        prompt_segs = prompt.split('<ImageHere>')
-        assert len(prompt_segs) == len(img_list) + 1, "Unmatched numbers of image placeholders and images."
-        seg_tokens = [
-            self.model.llama_tokenizer(
-                seg, return_tensors="pt", add_special_tokens=i == 0).to(self.device).input_ids
-            # only add bos to the first seg
-            for i, seg in enumerate(prompt_segs)
-        ]
-        seg_embs = [self.model.llama_model.model.embed_tokens(seg_t) for seg_t in seg_tokens]
-        mixed_embs = [emb for pair in zip(seg_embs[:-1], img_list) for emb in pair] + [seg_embs[-1]]
-        mixed_embs = torch.cat(mixed_embs, dim=1)
-        return mixed_embs
+      def get_context_emb(self, conv, img_list):
+            prompt = conv.get_prompt()
+            prompt_segs = prompt.split('<ImageHere>')
+            assert len(prompt_segs) == len(img_list) + 1, "Unmatched numbers of image placeholders and images."
+        
+            seg_tokens = []
+            for i, seg in enumerate(prompt_segs):
+                tokens = self.model.llama_tokenizer(seg, return_tensors="pt", add_special_tokens=(i == 0)).to(self.device)
+                input_ids = tokens.input_ids
+                decoded = self.model.llama_tokenizer.decode(input_ids[0], skip_special_tokens=True)
+                
+                print(f"\n--- Segment {i+1} ---")
+                print(f"Original Text: {seg}")
+                print(f"Token IDs: {input_ids.tolist()[0]}")
+                print(f"Decoded Text: {decoded}")
+                
+                seg_tokens.append(input_ids)
+        
+            seg_embs = [self.model.llama_model.model.embed_tokens(seg_t) for seg_t in seg_tokens]
+            mixed_embs = [emb for pair in zip(seg_embs[:-1], img_list) for emb in pair] + [seg_embs[-1]]
+            mixed_embs = torch.cat(mixed_embs, dim=1)
+            return mixed_embs
+
 
 
