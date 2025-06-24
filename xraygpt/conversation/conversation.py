@@ -214,7 +214,11 @@ class Chat:
             tokens = self.model.llama_tokenizer(seg, return_tensors="pt", add_special_tokens=(i == 0)).to(self.device)
             input_ids = tokens.input_ids
             decoded = self.model.llama_tokenizer.decode(input_ids[0], skip_special_tokens=True)
-                
+
+            print("Prompt:", prompt)
+            print("Prompt_segs:", prompt_segs)
+            print("Tokens:", tokens)
+            print("Input_ids:", input_ids)
             print(f"\n--- Segment {i+1} ---")
             print(f"Original Text: {seg}")
             print(f"Token IDs: {input_ids.tolist()[0]}")
