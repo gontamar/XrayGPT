@@ -39,6 +39,7 @@ class Blip2Base(BaseModel):
 
         if enable_autocast:
             return torch.cuda.amp.autocast(dtype=dtype)
+            #return torch.amp.autocast("cuda", dtype=dtype)
         else:
             return contextlib.nullcontext()
 
