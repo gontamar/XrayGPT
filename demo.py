@@ -143,4 +143,4 @@ with gr.Blocks() as demo:
 
     gr.Markdown(disclaimer)
 
-demo.launch(share=True, enable_queue=True)
+demo.launch(share=True)
