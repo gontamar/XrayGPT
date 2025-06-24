@@ -218,7 +218,6 @@ class Chat:
         print("Prompt:", prompt)
         print("Prompt_segs:", prompt_segs)
         print("Seg_tokens:", seg_tokens)
-        print("Seg:", seg)
         print("Seg_embs:", seg_embs)
         mixed_embs = [emb for pair in zip(seg_embs[:-1], img_list) for emb in pair] + [seg_embs[-1]]
         mixed_embs = torch.cat(mixed_embs, dim=1)
