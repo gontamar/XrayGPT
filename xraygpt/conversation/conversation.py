@@ -215,6 +215,11 @@ class Chat:
             for i, seg in enumerate(prompt_segs)
         ]
         seg_embs = [self.model.llama_model.model.embed_tokens(seg_t) for seg_t in seg_tokens]
+        print("Prompt:", prompt)
+        print("Prompt_segs:", prompt_segs)
+        print("Seg_tokens:", seg_tokens)
+        print("Seg:", seg)
+        print("Seg_embs:", seg_embs)
         mixed_embs = [emb for pair in zip(seg_embs[:-1], img_list) for emb in pair] + [seg_embs[-1]]
         mixed_embs = torch.cat(mixed_embs, dim=1)
         return mixed_embs
