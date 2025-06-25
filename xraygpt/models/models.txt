@@ -1,0 +1,62 @@
+#tokenization_llama.py
+
+The tokenization_llama.py file defines the LlamaTokenizer class, which provides all the logic needed to convert text to tokens and 
+tokens back to text for LLaMA-based language models. It is built on top of the Hugging Face Transformers tokenizer framework and 
+uses the SentencePiece library for subword tokenization.
+
+
+#eva_vit.py
+
+The eva_vit.py file implements the EVA Vision Transformer (ViT) model and related utilities for XrayGPT. This model is used as a 
+visual encoder to process images (such as X-rays) and extract visual features for downstream tasks like vision-language 
+understanding.
+
+
+#Qformer.py
+
+The Qformer.py file implements a BERT-based Query Transformer (Q-Former), which is a specialized transformer model used in 
+vision-language models like BLIP-2 and XrayGPT. Its main role is to bridge visual features (from an image encoder) and language 
+features (from an LLM) using learnable query embeddings.
+
+
+#modeling_llama.py
+
+The modeling_llama.py file implements the LLaMA language model architecture in PyTorch, adapted from Hugging Face Transformers. It provides all the 
+neural network components needed for LLaMA to function as a large language model (LLM) in XrayGPT.
+
+
+#mini_gpt4.py
+
+The mini_gpt4.py file defines the MiniGPT-4 model class for XrayGPT, which is a multimodal model that combines vision and language understanding. It 
+integrates a vision transformer (ViT), a Q-Former (query transformer), and a LLaMA language model to process both images (like X-rays) and text 
+(like medical questions or captions).
+
+
+In XRAYGPT/xraygpt/models, the files related to tokenization and encoding are:
+
+#Tokenization
+tokenization_llama.py
+Implements the LlamaTokenizer class.
+Responsible for converting text to tokens and tokens back to text for the LLaMA model.
+
+
+#Encoding
+eva_vit.py
+
+Implements the EVA Vision Transformer (ViT) model.
+Responsible for encoding images into visual feature embeddings.
+
+
+#Qformer.py
+
+Implements the Query Transformer (Q-Former) model.
+Encodes and fuses visual and textual features using learnable queries.
+Summary Table:
+
+File	                Purpose
+tokenization_llama.py	Text tokenization
+eva_vit.py	            Image encoding (ViT)
+Qformer.py	            Multimodal encoding/fusion
+
+
+These files handle the core tokenization and encoding steps in XrayGPT.
