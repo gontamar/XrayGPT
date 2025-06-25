@@ -1,0 +1,46 @@
+Here’s the overall flow of tokenization_llama.py:
+1. Imports and Setup
+Imports necessary libraries (SentencePiece, Hugging Face tokenizer base classes, logging, etc.).
+Defines constants for special tokens and default prompts.
+
+
+2. LlamaTokenizer Class Definition
+Inherits from PreTrainedTokenizer (Hugging Face).
+Decorated to require the sentencepiece backend.
+
+
+3. Initialization (__init__)
+Loads the SentencePiece model (tokenizer.model).
+Sets up special tokens (<unk>, <s>, </s>, etc.).
+Handles legacy and new tokenization behaviors.
+Configures options like adding BOS/EOS tokens, prefix spaces, and system prompts.
+
+
+4. SentencePiece Model Handling
+get_spm_processor: Loads and configures the SentencePiece processor, handling protobuf and legacy modes.
+Serialization methods (__getstate__, __setstate__) for saving/loading the tokenizer state.
+
+
+5. Tokenization Methods
+tokenize: Converts input text to a list of tokens, handling prefix spaces and special tokens.
+_tokenize: Low-level method that encodes text using SentencePiece, with workarounds for leading spaces/underlines.
+
+
+6. Conversion Methods
+_convert_token_to_id: Token string → token ID.
+_convert_id_to_token: Token ID → token string.
+convert_tokens_to_string: Converts a list of tokens back to a readable string, handling special tokens and spaces.
+
+
+7. Vocabulary and Special Token Handling
+vocab_size and get_vocab: Access vocabulary size and mapping.
+save_vocabulary: Saves the SentencePiece model to disk.
+
+
+8. Input Construction for Models
+build_inputs_with_special_tokens: Adds BOS/EOS tokens to input sequences.
+get_special_tokens_mask: Creates a mask indicating which tokens are special.
+create_token_type_ids_from_sequences: Generates token type IDs for sequence-pair tasks.
+
+In summary:
+tokenization_llama.py provides all the logic for converting text to tokens and back, managing special tokens, and preparing inputs for the LLaMA model in XrayGPT, using SentencePiece for subword tokenization and supporting both legacy and new behaviors.
