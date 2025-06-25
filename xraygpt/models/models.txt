@@ -53,10 +53,10 @@ Implements the Query Transformer (Q-Former) model.
 Encodes and fuses visual and textual features using learnable queries.
 Summary Table:
 
-File	                Purpose
-tokenization_llama.py	Text tokenization
-eva_vit.py	            Image encoding (ViT)
-Qformer.py	            Multimodal encoding/fusion
+File	                     Purpose
+tokenization_llama.py	     Text tokenization
+eva_vit.py	               Image encoding (ViT)
+Qformer.py	               Multimodal encoding/fusion
 
 
 These files handle the core tokenization and encoding steps in XrayGPT.
