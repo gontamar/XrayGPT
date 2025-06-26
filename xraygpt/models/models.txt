@@ -37,6 +37,7 @@ In XRAYGPT/xraygpt/models, the files related to tokenization and encoding are:
 #Tokenization
 tokenization_llama.py
 Implements the LlamaTokenizer class.
+
 Responsible for converting text to tokens and tokens back to text for the LLaMA model.
 
 
@@ -52,7 +53,7 @@ Responsible for encoding images into visual feature embeddings.
 Implements the Query Transformer (Q-Former) model.
 Encodes and fuses visual and textual features using learnable queries.
 Summary Table:
-
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 File	                     Purpose
 tokenization_llama.py	     Text tokenization
 eva_vit.py	               Image encoding (ViT)
@@ -60,3 +61,37 @@ Qformer.py	               Multimodal encoding/fusion
 
 
 These files handle the core tokenization and encoding steps in XrayGPT.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+1. Tokenization
+Tokenization itself is typically handled by HuggingFace tokenizers (e.g., LlamaTokenizer, BertTokenizer), not custom code in this directory.
+
+However, if you see code referencing LlamaTokenizer, AutoTokenizer, or similar, those are used for tokenization.
+
+2. Encoding
+eva_vit.py
+Implements the Vision Transformer (ViT) encoder for images.
+
+PatchEmbed class: splits images into patches and encodes them.
+VisionTransformer class: main image encoder.
+
+Qformer.py
+Implements a transformer encoder for query tokens and text, with cross-attention to image features.
+
+BertEmbeddings, BertEncoder, BertLayer: encode text and query tokens.
+Cross-attention allows encoding of visual and textual features together.
+base_model.py
+Provides the BaseModel and BaseEncoder classes, which are parent classes for encoders (like ViT or Q-Former).
+
+3. Self-Attention
+eva_vit.py
+
+Attention class: Implements multi-head self-attention for vision transformer blocks.
+Qformer.py
+
+BertSelfAttention and BertAttention classes: Implement self-attention and cross-attention for text/query tokens.
+
+------------------------------------------------------------------------------------------------------------------------------------
+Tokenization is mostly handled by external libraries (HuggingFace).
+Encoding and self-attention logic is implemented in eva_vit.py (for images) and Qformer.py (for text/query tokens and cross-modal fusion).
