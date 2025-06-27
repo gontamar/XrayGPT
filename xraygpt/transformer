@@ -1,3 +1,107 @@
 https://stefanbschneider.github.io/blog/posts/understanding-transformers-attention/
 
 https://hal.science/hal-04637647v1/file/Transformer_tutorial.pdf
+
+The file you referenced, `xraygpt/Transformer_tutorial.pdf`, is a **PDF** document and cannot be processed directly for its text content here due to its binary format. However, I can provide you with a **general explanation of common transformer concepts** and step-by-step guides on how transformers work based on standard tutorials.
+
+If you would like a detailed breakdown of the exact content in your PDF, you will need to extract the text or upload a converted version. For now, here’s a comprehensive overview of transformer concepts and operational steps:
+
+---
+
+## Key Concepts in Transformer Models
+
+### 1. **Attention Mechanism**
+- Allows the model to focus on different parts of the input sequence for each output element.
+- **How it Works:** Computes a weighted sum of all input values, where weights are determined by the similarity between a query and each key.
+
+### 2. **Self-Attention**
+- A special attention mechanism where queries, keys, and values come from the same source (the input sequence).
+- **How it Works:** Each token in the sequence attends to every other token, including itself, to gather contextual information.
+
+### 3. **Multi-Head Attention**
+- Runs multiple self-attention mechanisms (heads) in parallel, each learning different relationships.
+- **How it Works:** The outputs of all heads are concatenated and projected to the desired dimension.
+
+### 4. **Positional Encoding**
+- Since transformers lack inherent sequence order, positional encodings provide information about the position of tokens.
+- **How it Works:** Adds a vector (often sinusoidal or learned) to each input embedding, reflecting its position in the sequence.
+
+### 5. **Feedforward Neural Network (FFN)**
+- A simple two-layer neural network applied to each position independently and identically.
+- **How it Works:** Processes the output of the attention layer to enable nonlinearity and richer representations.
+
+### 6. **Residual Connections & Layer Normalization**
+- Helps with gradient flow and training stability.
+- **How it Works:** The input to each sub-layer is added to its output (residual), and then normalized.
+
+### 7. **Encoder-Decoder Architecture**
+- The transformer consists of an encoder (processes input) and a decoder (generates output).
+- **How it Works:** The encoder produces a context vector; the decoder uses this context and previous outputs to generate the next token.
+
+---
+
+## Step-by-Step: How a Transformer Works
+
+### **Encoding Phase**
+1. **Input Embedding:**  
+   Convert tokens to dense vectors (embeddings).
+2. **Add Positional Encoding:**  
+   Inject position information into embeddings.
+3. **Pass Through Encoder Layers (N times):**
+    - **Self-Attention:** Each token looks at every other token.
+    - **Add & Norm:** Add residual and normalize.
+    - **Feedforward Network:** Process each position.
+    - **Add & Norm:** Again, add residual and normalize.
+4. **Output:**  
+   The encoder outputs a sequence of context-enriched vectors.
+
+### **Decoding Phase**
+1. **Target Embedding + Positional Encoding:**  
+   Prepare embeddings for target (output) sequence.
+2. **Pass Through Decoder Layers (N times):**
+    - **Masked Self-Attention:** Each position can only attend to earlier positions (to prevent cheating).
+    - **Add & Norm**
+    - **Encoder-Decoder Attention:** Attends to encoder output.
+    - **Add & Norm**
+    - **Feedforward Network**
+    - **Add & Norm**
+3. **Output:**  
+   Decoder outputs are projected to vocabulary logits for prediction.
+
+---
+
+## Example: Self-Attention Calculation
+
+For a single attention head:
+1. **Compute Queries (Q), Keys (K), Values (V):**
+   ```
+   Q = XW_Q
+   K = XW_K
+   V = XW_V
+   ```
+2. **Attention Scores:**  
+   ```
+   scores = Q . K^T / sqrt(d_k)
+   ```
+3. **Softmax over Scores:**  
+   ```
+   weights = softmax(scores)
+   ```
+4. **Weighted Sum:**  
+   ```
+   output = weights . V
+   ```
+
+---
+
+## In Summary
+
+- **Transformers** use attention to model relationships in data, removing the need for recurrence.
+- Each component (attention, positional encoding, feedforward, residual) has a specific role in processing sequences.
+- The model is highly parallelizable and forms the basis for modern NLP models like BERT and GPT.
+
+---
+
+### Want More?
+
+If you want a specific explanation of a section in your PDF, please extract and paste the relevant text here, or convert the PDF to text and upload it. I can then provide a precise, step-by-step explanation for each concept in your tutorial!
