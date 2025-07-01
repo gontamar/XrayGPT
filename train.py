@@ -52,16 +52,16 @@ def parse_args():
 
 
 def setup_seeds(config):
-    seed = config.run_cfg.seed + get_rank()
+    seed = config.run_cfg.seed + get_rank() # get_rank from xraygpt/common/dist_utils.py
 
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)
+    torch.manual_seed(seed) # Set seeds in stdlib, numpy, pytorch
 
-    cudnn.benchmark = False
-    cudnn.deterministic = True
+    cudnn.benchmark = False 
+    cudnn.deterministic = True # PyTorch backend config
 
-
+#Uses the global registry (xraygpt/common/registry.py) that was populated by imports from runners, models, etc.
 def get_runner_class(cfg):
     """
     Get runner class from config. Default to epoch-based runner.
@@ -76,27 +76,29 @@ def main():
     # os.environ["NCCL_BLOCKING_WAIT"] = "1"
 
     # set before init_distributed_mode() to ensure the same job_id shared across all ranks.
-    job_id = now()
 
-    cfg = Config(parse_args())
+    job_id = now() # From xraygpt/common/utils.py
 
-    init_distributed_mode(cfg.run_cfg)
+    cfg = Config(parse_args()) # Loads config and applies CLI overrides (xraygpt/common/config.py)
 
-    setup_seeds(cfg)
+    init_distributed_mode(cfg.run_cfg) # xraygpt/common/dist_utils.py
+
+    setup_seeds(cfg) # Calls function above (seeds randomness)
 
     # set after init_distributed_mode() to only log on master.
-    setup_logger()
 
-    cfg.pretty_print()
+    setup_logger()    # xraygpt/common/logger.py
 
-    task = tasks.setup_task(cfg)
-    datasets = task.build_datasets(cfg)
-    model = task.build_model(cfg)
+    cfg.pretty_print() # Pretty print config (xraygpt/common/config.py)
+
+    task = tasks.setup_task(cfg) # xraygpt/tasks/__init__.py, will instantiate a task class
+    datasets = task.build_datasets(cfg)  # Calls the method on task object, likely uses xraygpt/datasets/builders/
+    model = task.build_model(cfg)  # Calls the method on task, likely uses xraygpt/models/
 
     runner = get_runner_class(cfg)(
         cfg=cfg, job_id=job_id, task=task, model=model, datasets=datasets
     )
-    runner.train()
+    runner.train()  # Calls train() method on the runner (from xraygpt/runners/)
 
 
 if __name__ == "__main__":
