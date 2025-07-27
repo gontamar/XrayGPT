@@ -1,0 +1,298 @@
+# Universal Multimodal Framework Training Configurations
+# Inspired by XRayGPT training pipeline
+
+# ============================================================================
+# GENERAL FRAMEWORK CONFIGURATION
+# ============================================================================
+framework:
+  name: "Universal Multimodal Framework"
+  version: "1.0"
+  feature_dim: 768
+  num_query_tokens: 32
+  max_sequence_length: 2048
+
+# ============================================================================
+# TOKENIZER CONFIGURATION
+# ============================================================================
+tokenizer:
+  vocab_size: 50000
+  max_length: 2048
+  special_tokens:
+    pad_token: "[PAD]"
+    unk_token: "[UNK]"
+    bos_token: "[BOS]"
+    eos_token: "[EOS]"
+    sep_token: "[SEP]"
+    mask_token: "[MASK]"
+    img_token: "[IMG]"
+    audio_token: "[AUDIO]"
+    video_token: "[VIDEO]"
+    sensor_token: "[SENSOR]"
+    medical_token: "[MEDICAL]"
+    autonomous_token: "[AUTO]"
+    robotics_token: "[ROBOT]"
+    education_token: "[EDU]"
+
+# ============================================================================
+# ENCODER CONFIGURATIONS
+# ============================================================================
+encoders:
+  vision:
+    model_name: "eva_clip_g"
+    image_size: 224
+    output_dim: 768
+    freeze: false
+    precision: "fp16"
+    drop_path_rate: 0.1
+    use_grad_checkpoint: true
+    
+  audio:
+    model_name: "wav2vec2-base"
+    sample_rate: 16000
+    output_dim: 768
+    freeze: false
+    
+  sensor:
+    lidar:
+      input_dim: 1024
+      output_dim: 768
+      layers: [512, 256]
+      activation: "relu"
+    imu:
+      input_dim: 6
+      output_dim: 768
+      layers: [128, 64]
+      activation: "relu"
+
+# ============================================================================
+# FUSION CONFIGURATION
+# ============================================================================
+fusion:
+  type: "qformer"  # Options: qformer, cross_attention, concat
+  num_query_tokens: 32
+  num_layers: 6
+  num_heads: 8
+  hidden_dim: 768
+  intermediate_dim: 3072
+  dropout: 0.1
+
+# ============================================================================
+# DOMAIN ADAPTER CONFIGURATIONS
+# ============================================================================
+domain_adapters:
+  medical:
+    feature_dim: 768
+    medical_vocab_size: 10000
+    dropout: 0.1
+    layers: [768, 768]
+    
+  autonomous:
+    feature_dim: 768
+    num_scenarios: 50
+    spatial_enhancement: true
+    layers: [768, 1536, 768]
+    
+  robotics:
+    feature_dim: 768
+    action_dim: 6
+    manipulation_planning: true
+    layers: [768, 768]
+    
+  education:
+    feature_dim: 768
+    difficulty_levels: 5
+    pedagogy_enhancement: true
+    layers: [768, 768]
+
+# ============================================================================
+# TRAINING CONFIGURATIONS
+# ============================================================================
+training:
+  # Stage 1: Encoder Pre-training
+  stage1_encoder_pretraining:
+    epochs: 20
+    batch_size: 32
+    learning_rate: 1e-4
+    weight_decay: 0.01
+    warmup_steps: 1000
+    scheduler: "cosine"
+    gradient_clip: 1.0
+    
+    # Contrastive learning parameters
+    temperature: 0.07
+    negative_samples: 64
+    
+  # Stage 2: Cross-modal Fusion Training
+  stage2_fusion_training:
+    epochs: 10
+    batch_size: 16
+    learning_rate: 5e-5
+    weight_decay: 0.01
+    freeze_encoders: true
+    
+    # Alignment loss parameters
+    alignment_weight: 1.0
+    reconstruction_weight: 0.5
+    
+  # Stage 3: Domain Adaptation Training
+  stage3_domain_adaptation:
+    epochs: 15
+    batch_size: 8
+    learning_rate: 2e-5
+    weight_decay: 0.01
+    
+    # Domain-specific parameters
+    domain_loss_weight: 1.0
+    adversarial_weight: 0.1
+    
+  # Stage 4: Instruction Following Training
+  stage4_instruction_training:
+    epochs: 5
+    batch_size: 4
+    learning_rate: 1e-5
+    weight_decay: 0.01
+    
+    # Instruction following parameters
+    max_new_tokens: 512
+    temperature: 0.8
+    top_p: 0.9
+
+# ============================================================================
+# DATASET CONFIGURATIONS
+# ============================================================================
+datasets:
+  # Medical Domain Datasets
+  medical:
+    mimic_cxr:
+      path: "/data/medical/mimic-cxr"
+      image_dir: "images"
+      annotation_file: "annotations.json"
+      split_ratio: [0.8, 0.1, 0.1]
+      
+    openi:
+      path: "/data/medical/openi"
+      image_dir: "images" 
+      annotation_file: "annotations.json"
+      split_ratio: [0.8, 0.1, 0.1]
+      
+  # Autonomous Driving Datasets
+  autonomous:
+    nuscenes:
+      path: "/data/autonomous/nuscenes"
+      modalities: ["camera", "lidar", "radar"]
+      split_ratio: [0.8, 0.1, 0.1]
+      
+    kitti:
+      path: "/data/autonomous/kitti"
+      modalities: ["camera", "lidar"]
+      split_ratio: [0.8, 0.1, 0.1]
+      
+  # Educational Datasets
+  education:
+    textbook_qa:
+      path: "/data/education/textbook_qa"
+      image_dir: "diagrams"
+      annotation_file: "qa_pairs.json"
+      
+    science_diagrams:
+      path: "/data/education/science_diagrams"
+      image_dir: "images"
+      annotation_file: "explanations.json"
+
+# ============================================================================
+# EVALUATION CONFIGURATIONS
+# ============================================================================
+evaluation:
+  metrics:
+    # Cross-modal retrieval
+    retrieval:
+      - "recall@1"
+      - "recall@5" 
+      - "recall@10"
+      - "mean_rank"
+      
+    # Generation quality
+    generation:
+      - "bleu"
+      - "rouge"
+      - "meteor"
+      - "cider"
+      
+    # Domain-specific metrics
+    domain_specific:
+      medical:
+        - "clinical_accuracy"
+        - "diagnostic_precision"
+        - "safety_score"
+      autonomous:
+        - "navigation_accuracy"
+        - "safety_violations"
+        - "efficiency_score"
+      education:
+        - "explanation_clarity"
+        - "concept_coverage"
+        - "engagement_score"
+
+# ============================================================================
+# INFERENCE CONFIGURATIONS
+# ============================================================================
+inference:
+  generation:
+    max_new_tokens: 512
+    min_length: 10
+    temperature: 0.8
+    top_p: 0.9
+    top_k: 50
+    repetition_penalty: 1.1
+    length_penalty: 1.0
+    num_beams: 1
+    do_sample: true
+    
+  conversation:
+    max_turns: 10
+    max_context_length: 2048
+    memory_management: "sliding_window"
+    
+  batch_processing:
+    batch_size: 8
+    max_concurrent_requests: 16
+
+# ============================================================================
+# HARDWARE CONFIGURATIONS
+# ============================================================================
+hardware:
+  # Training hardware requirements
+  training:
+    min_gpu_memory: "24GB"
+    recommended_gpus: 4
+    mixed_precision: true
+    gradient_checkpointing: true
+    
+  # Inference hardware requirements  
+  inference:
+    min_gpu_memory: "8GB"
+    cpu_fallback: true
+    quantization: "int8"
+    
+# ============================================================================
+# LOGGING AND MONITORING
+# ============================================================================
+logging:
+  level: "INFO"
+  log_dir: "./logs"
+  tensorboard: true
+  wandb:
+    enabled: true
+    project: "universal-multimodal-framework"
+    
+  checkpointing:
+    save_every: 1000
+    keep_last: 5
+    save_best: true
+    
+monitoring:
+  metrics_interval: 100
+  validation_interval: 1000
+  early_stopping:
+    patience: 5
+    min_delta: 0.001

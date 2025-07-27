@@ -1,0 +1,405 @@
+# Universal Multimodal Framework (UMF) Configuration
+# Inspired by XrayGPT for generic domain applications
+
+framework:
+  name: "Universal Multimodal Framework"
+  version: "1.0.0"
+  description: "Domain-agnostic multimodal AI system"
+
+# Domain Configuration
+domains:
+  medical:
+    enabled: true
+    conversation_style: "doctor_patient"
+    prompt_template: "###Patient: {input} ###Doctor: "
+    specialized_vocab: ["diagnosis", "symptom", "treatment", "prognosis", "radiology", "pathology"]
+    safety_filters: ["medical_ethics", "patient_privacy", "clinical_accuracy"]
+    safety_level: "high"
+    max_response_length: 512
+    real_time_requirements: false
+    
+  autonomous:
+    enabled: true
+    conversation_style: "system_driver"
+    prompt_template: "###Scene: {input} ###Action: "
+    specialized_vocab: ["vehicle", "traffic", "obstacle", "route", "safety", "navigation"]
+    safety_filters: ["traffic_safety", "legal_compliance", "collision_avoidance"]
+    safety_level: "critical"
+    max_response_length: 256
+    real_time_requirements: true
+    
+  robotics:
+    enabled: true
+    conversation_style: "human_robot"
+    prompt_template: "###Human: {input} ###Robot: "
+    specialized_vocab: ["grasp", "navigate", "manipulate", "sensor", "actuator", "trajectory"]
+    safety_filters: ["physical_safety", "collision_avoidance", "workspace_bounds"]
+    safety_level: "high"
+    max_response_length: 384
+    real_time_requirements: true
+    
+  education:
+    enabled: true
+    conversation_style: "teacher_student"
+    prompt_template: "###Student: {input} ###Teacher: "
+    specialized_vocab: ["concept", "explanation", "example", "exercise", "feedback", "learning"]
+    safety_filters: ["age_appropriate", "educational_standards", "content_accuracy"]
+    safety_level: "medium"
+    max_response_length: 768
+    real_time_requirements: false
+    
+  general:
+    enabled: true
+    conversation_style: "assistant_user"
+    prompt_template: "###User: {input} ###Assistant: "
+    specialized_vocab: ["help", "information", "assistance", "query", "support", "guidance"]
+    safety_filters: ["general_safety", "content_policy", "factual_accuracy"]
+    safety_level: "medium"
+    max_response_length: 512
+    real_time_requirements: false
+
+# Modality Configuration
+modalities:
+  vision:
+    enabled: true
+    encoder: "eva_vit_g"
+    model_path: "facebook/eva-clip-giant-patch14-224"
+    resolution: [224, 224]
+    preprocessing:
+      normalize: true
+      resize: true
+      center_crop: true
+    domain_specific:
+      medical:
+        enhance_contrast: true
+        histogram_equalization: true
+      autonomous:
+        edge_enhancement: true
+        brightness_adaptation: true
+      robotics:
+        depth_estimation: true
+        object_detection: true
+        
+  audio:
+    enabled: true
+    encoder: "wav2vec2"
+    model_path: "facebook/wav2vec2-base-960h"
+    sample_rate: 16000
+    preprocessing:
+      normalize: true
+      spectral_features: true
+    domain_specific:
+      medical:
+        heart_sound_analysis: true
+        respiratory_analysis: true
+      education:
+        speech_recognition: true
+        pronunciation_analysis: true
+        
+  text:
+    enabled: true
+    encoder: "bert_base"
+    model_path: "bert-base-uncased"
+    max_length: 512
+    tokenization: "domain_aware"
+    preprocessing:
+      lowercase: true
+      remove_special_chars: false
+    domain_specific:
+      medical:
+        medical_ner: true
+        clinical_abbreviations: true
+      legal:
+        legal_terminology: true
+        
+  sensor:
+    enabled: true
+    types: ["lidar", "imu", "gps", "radar"]
+    preprocessing:
+      normalization: true
+      filtering: true
+    domain_specific:
+      autonomous:
+        point_cloud_processing: true
+        sensor_fusion: true
+      robotics:
+        proprioceptive_processing: true
+        force_torque_analysis: true
+
+# Model Architecture Configuration
+model:
+  base_llm:
+    name: "vicuna_7b"
+    model_path: "lmsys/vicuna-7b-v1.5"
+    precision: "fp16"
+    device_map: "auto"
+    load_in_8bit: false
+    
+  tokenizer:
+    model_path: "lmsys/vicuna-7b-v1.5"
+    padding_side: "right"
+    truncation: true
+    max_length: 2048
+    
+  q_former:
+    num_query_tokens: 32
+    hidden_size: 768
+    num_attention_heads: 12
+    num_hidden_layers: 6
+    intermediate_size: 3072
+    dropout: 0.1
+    domain_adaptive: true
+    
+  fusion:
+    type: "cross_attention"
+    hidden_size: 768
+    num_heads: 12
+    dropout: 0.1
+    domain_adaptive: true
+    temperature: 0.1
+    
+  domain_adapters:
+    hidden_size: 768
+    num_layers: 2
+    dropout: 0.1
+    activation: "gelu"
+    
+  projection:
+    input_dim: 768
+    output_dim: 4096  # LLaMA hidden size
+    num_layers: 2
+    activation: "gelu"
+    dropout: 0.1
+
+# Training Configuration
+training:
+  output_dir: "./outputs/umf_training"
+  logging_dir: "./logs"
+  seed: 42
+  
+  # Global training parameters
+  batch_size: 8
+  gradient_accumulation_steps: 4
+  learning_rate: 1e-4
+  weight_decay: 0.01
+  warmup_ratio: 0.1
+  max_grad_norm: 1.0
+  
+  # Multi-stage training
+  stages:
+    modality_pretrain:
+      enabled: true
+      epochs: 50
+      learning_rate: 1e-4
+      batch_size: 16
+      frozen_components: ["language_model", "q_former", "domain_adapters"]
+      trainable_components: ["input_processor"]
+      objective: "contrastive_learning"
+      datasets: ["imagenet", "audioset", "common_crawl"]
+      
+    cross_modal_align:
+      enabled: true
+      epochs: 25
+      learning_rate: 5e-5
+      batch_size: 12
+      frozen_components: ["input_processor", "language_model"]
+      trainable_components: ["q_former", "projection"]
+      objective: "alignment_loss"
+      datasets: ["coco_captions", "vqa", "audiocaps"]
+      
+    domain_adapt:
+      enabled: true
+      epochs: 20
+      learning_rate: 3e-5
+      batch_size: 8
+      frozen_components: ["input_processor", "q_former", "language_model"]
+      trainable_components: ["domain_adapters"]
+      objective: "domain_specific_loss"
+      datasets:
+        medical: ["mimic_cxr", "openi", "medical_vqa"]
+        autonomous: ["nuscenes", "kitti", "waymo"]
+        robotics: ["robonet", "something_something"]
+        education: ["educational_vqa", "khan_academy"]
+        
+    instruction_tune:
+      enabled: true
+      epochs: 10
+      learning_rate: 1e-5
+      batch_size: 4
+      frozen_components: ["input_processor", "q_former"]
+      trainable_components: ["language_model", "domain_adapters"]
+      objective: "instruction_following"
+      datasets: ["alpaca", "vicuna_conversations", "domain_dialogues"]
+
+# Data Configuration
+data:
+  root_path: "./data"
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 2
+  
+  # Dataset paths
+  datasets:
+    # Medical datasets
+    mimic_cxr:
+      path: "./data/medical/mimic_cxr"
+      annotation_file: "filter_cap.json"
+      image_dir: "images"
+      
+    openi:
+      path: "./data/medical/openi"
+      annotation_file: "filter_cap.json"
+      image_dir: "images"
+      
+    # Autonomous driving datasets
+    nuscenes:
+      path: "./data/autonomous/nuscenes"
+      annotation_file: "annotations.json"
+      
+    kitti:
+      path: "./data/autonomous/kitti"
+      annotation_file: "annotations.json"
+      
+    # Robotics datasets
+    robonet:
+      path: "./data/robotics/robonet"
+      annotation_file: "annotations.json"
+      
+    # Education datasets
+    educational_vqa:
+      path: "./data/education/vqa"
+      annotation_file: "annotations.json"
+      
+    # General multimodal datasets
+    coco_captions:
+      path: "./data/general/coco"
+      annotation_file: "captions.json"
+      
+    vqa:
+      path: "./data/general/vqa"
+      annotation_file: "questions.json"
+
+# Generation Configuration
+generation:
+  max_new_tokens: 300
+  min_length: 10
+  temperature: 1.0
+  top_p: 0.9
+  top_k: 50
+  num_beams: 1
+  do_sample: true
+  repetition_penalty: 1.1
+  length_penalty: 1.0
+  early_stopping: true
+  
+  # Domain-specific generation parameters
+  domain_specific:
+    medical:
+      max_new_tokens: 400
+      temperature: 0.7
+      top_p: 0.8
+      safety_threshold: 0.9
+      
+    autonomous:
+      max_new_tokens: 150
+      temperature: 0.3
+      top_p: 0.7
+      real_time_timeout: 100  # milliseconds
+      
+    robotics:
+      max_new_tokens: 200
+      temperature: 0.5
+      top_p: 0.8
+      action_validation: true
+      
+    education:
+      max_new_tokens: 500
+      temperature: 0.8
+      top_p: 0.9
+      pedagogical_filtering: true
+
+# Evaluation Configuration
+evaluation:
+  metrics:
+    general: ["bleu", "rouge", "meteor", "bertscore"]
+    domain_specific:
+      medical: ["clinical_accuracy", "safety_score", "diagnostic_relevance"]
+      autonomous: ["decision_accuracy", "safety_compliance", "real_time_performance"]
+      robotics: ["task_success_rate", "safety_score", "execution_efficiency"]
+      education: ["learning_effectiveness", "engagement_score", "knowledge_retention"]
+      
+  benchmarks:
+    medical: ["medical_vqa", "radiology_reports", "clinical_notes"]
+    autonomous: ["driving_scenarios", "traffic_understanding", "route_planning"]
+    robotics: ["manipulation_tasks", "navigation_tasks", "human_robot_interaction"]
+    education: ["educational_qa", "concept_explanation", "problem_solving"]
+
+# Infrastructure Configuration
+infrastructure:
+  device: "cuda"
+  mixed_precision: true
+  gradient_checkpointing: true
+  dataloader_num_workers: 8
+  
+  # Distributed training
+  distributed:
+    enabled: false
+    backend: "nccl"
+    world_size: 1
+    rank: 0
+    
+  # Memory optimization
+  memory:
+    gradient_accumulation_steps: 4
+    max_memory_per_gpu: "24GB"
+    offload_to_cpu: false
+    
+  # Monitoring
+  monitoring:
+    log_interval: 100
+    eval_interval: 1000
+    save_interval: 5000
+    
+# Experiment Tracking
+wandb:
+  enabled: false
+  project: "universal-multimodal-framework"
+  entity: "your-wandb-entity"
+  tags: ["multimodal", "universal", "domain-agnostic"]
+  
+tensorboard:
+  enabled: true
+  log_dir: "./logs/tensorboard"
+
+# Safety and Ethics
+safety:
+  content_filtering: true
+  bias_detection: true
+  fairness_evaluation: true
+  
+  filters:
+    medical_ethics: true
+    patient_privacy: true
+    clinical_accuracy: true
+    traffic_safety: true
+    physical_safety: true
+    age_appropriate: true
+    content_policy: true
+    
+# Deployment Configuration
+deployment:
+  api:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8000
+    workers: 4
+    
+  gradio:
+    enabled: true
+    share: false
+    server_port: 7860
+    
+  model_serving:
+    batch_size: 1
+    max_batch_delay: 10  # milliseconds
+    model_cache_size: "4GB"
