@@ -1,0 +1,492 @@
+(demo) test@MYTSA00001:~/Downloads/Tokenization$ python example_usage.py
+=== Generic Tokenizer Manager Demo ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+📋 Available Tokenizers:
+----------------------------------------
+ 1. bert
+ 2. bert_large
+ 3. blip2_bert
+ 4. gpt2
+ 5. llama
+ 6. roberta
+ 7. vicuna
+ 8. vicuna_llm
+
+🎯 Select a tokenizer for demonstration:
+Enter your choice (1-8) or press Enter for 'bert': 1
+
+✅ Selected tokenizer: bert
+
+1. Using TokenizerManager with bert:
+----------------------------------------
+Loading bert tokenizer...
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text: This is a sample radiology report for testing.
+Tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+Token IDs: [101, 2023, 2003, 1037, 7099, 2557, 6483, 3189, 2005, 5604, 1012, 102]
+
+2. Using XrayGPT BLIP2 BERT configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text: This is a sample radiology report for testing.
+Tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+Token IDs: [101, 2023, 2003, 1037, 7099, 2557, 6483, 3189, 2005, 5604, 1012, 102]
+
+3. Using Vicuna tokenizer:
+----------------------------------------
+ERROR:tokenizer_manager:Error loading tokenizer lmsys/vicuna-7b-v1.5: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+Note: Vicuna tokenizer not available locally: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+
+4. Using quick_tokenize function:
+----------------------------------------
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Quick tokenization result: 10 tokens
+
+5. Using custom configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[CUSTOM_START]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Custom config tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+
+6. Batch tokenization:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text 1: This is the first radiology report.
+Tokens 1: 8 tokens
+Text 2: This is the second medical document.
+Tokens 2: 7 tokens
+Text 3: Another sample text for batch processing.
+Tokens 3: 7 tokens
+
+7. Tokenizer information:
+----------------------------------------
+BERT config: {'model_name': 'bert-base-uncased', 'special_tokens': {'bos_token': '[DEC]'}, 'max_length': 512, 'padding': True, 'truncation': True, 'return_tensors': 'pt'}
+Vocabulary size: 30523
+Special tokens: {'bos_token': '[DEC]', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}
+
+
+=== XrayGPT Specific Usage ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+Using BLIP2 BERT tokenizer for radiology report:
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Report length: 241 characters
+Number of tokens: 54
+First 10 tokens: ['findings', ':', 'the', 'chest', 'x', '-', 'ray', 'shows', 'clear', 'lung']
+Last 10 tokens: ['intact', '.', 'impression', ':', 'normal', 'chest', 'x', '-', 'ray', '.']
+Decoded text matches original: False
+(demo) test@MYTSA00001:~/Downloads/Tokenization$ python example_usage.py
+=== Generic Tokenizer Manager Demo ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+📋 Available Tokenizers:
+----------------------------------------
+ 1. bert
+ 2. bert_large
+ 3. blip2_bert
+ 4. gpt2
+ 5. llama
+ 6. roberta
+ 7. vicuna
+ 8. vicuna_llm
+
+🎯 Select a tokenizer for demonstration:
+Enter your choice (1-8) or press Enter for 'bert': 2
+
+✅ Selected tokenizer: bert_large
+
+1. Using TokenizerManager with bert_large:
+----------------------------------------
+Loading bert_large tokenizer...
+tokenizer_config.json: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 48.0/48.0 [00:00<00:00, 358kB/s]
+config.json: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 571/571 [00:00<00:00, 5.38MB/s]
+vocab.txt: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 232k/232k [00:00<00:00, 1.12MB/s]
+tokenizer.json: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 466k/466k [00:00<00:00, 1.08MB/s]
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-large-uncased
+Text: This is a sample radiology report for testing.
+Tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+Token IDs: [101, 2023, 2003, 1037, 7099, 2557, 6483, 3189, 2005, 5604, 1012, 102]
+
+2. Using XrayGPT BLIP2 BERT configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text: This is a sample radiology report for testing.
+Tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+Token IDs: [101, 2023, 2003, 1037, 7099, 2557, 6483, 3189, 2005, 5604, 1012, 102]
+
+3. Using Vicuna tokenizer:
+----------------------------------------
+ERROR:tokenizer_manager:Error loading tokenizer lmsys/vicuna-7b-v1.5: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+Note: Vicuna tokenizer not available locally: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+
+4. Using quick_tokenize function:
+----------------------------------------
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Quick tokenization result: 10 tokens
+
+5. Using custom configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[CUSTOM_START]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Custom config tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+
+6. Batch tokenization:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text 1: This is the first radiology report.
+Tokens 1: 8 tokens
+Text 2: This is the second medical document.
+Tokens 2: 7 tokens
+Text 3: Another sample text for batch processing.
+Tokens 3: 7 tokens
+
+7. Tokenizer information:
+----------------------------------------
+BERT config: {'model_name': 'bert-base-uncased', 'special_tokens': {'bos_token': '[DEC]'}, 'max_length': 512, 'padding': True, 'truncation': True, 'return_tensors': 'pt'}
+Vocabulary size: 30523
+Special tokens: {'bos_token': '[DEC]', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}
+
+
+=== XrayGPT Specific Usage ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+Using BLIP2 BERT tokenizer for radiology report:
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Report length: 241 characters
+Number of tokens: 54
+First 10 tokens: ['findings', ':', 'the', 'chest', 'x', '-', 'ray', 'shows', 'clear', 'lung']
+Last 10 tokens: ['intact', '.', 'impression', ':', 'normal', 'chest', 'x', '-', 'ray', '.']
+Decoded text matches original: False
+(demo) test@MYTSA00001:~/Downloads/Tokenization$ python example_usage.py
+=== Generic Tokenizer Manager Demo ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+📋 Available Tokenizers:
+----------------------------------------
+ 1. bert
+ 2. bert_large
+ 3. blip2_bert
+ 4. gpt2
+ 5. llama
+ 6. roberta
+ 7. vicuna
+ 8. vicuna_llm
+
+🎯 Select a tokenizer for demonstration:
+Enter your choice (1-8) or press Enter for 'bert': 4
+
+✅ Selected tokenizer: gpt2
+
+1. Using TokenizerManager with gpt2:
+----------------------------------------
+Loading gpt2 tokenizer...
+tokenizer_config.json: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 26.0/26.0 [00:00<00:00, 213kB/s]
+config.json: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 665/665 [00:00<00:00, 6.02MB/s]
+vocab.json: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1.04M/1.04M [00:00<00:00, 2.23MB/s]
+merges.txt: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 456k/456k [00:00<00:00, 1.76MB/s]
+tokenizer.json: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1.36M/1.36M [00:00<00:00, 1.56MB/s]
+INFO:tokenizer_manager:Added special tokens: {'pad_token': '[PAD]'}
+INFO:tokenizer_manager:Tokenizer loaded: gpt2
+Text: This is a sample radiology report for testing.
+Tokens: ['This', 'Ġis', 'Ġa', 'Ġsample', 'Ġrad', 'iology', 'Ġreport', 'Ġfor', 'Ġtesting', '.']
+Token IDs: [1212, 318, 257, 6291, 2511, 12371, 989, 329, 4856, 13]
+
+2. Using XrayGPT BLIP2 BERT configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text: This is a sample radiology report for testing.
+Tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+Token IDs: [101, 2023, 2003, 1037, 7099, 2557, 6483, 3189, 2005, 5604, 1012, 102]
+
+3. Using Vicuna tokenizer:
+----------------------------------------
+ERROR:tokenizer_manager:Error loading tokenizer lmsys/vicuna-7b-v1.5: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+Note: Vicuna tokenizer not available locally: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+
+4. Using quick_tokenize function:
+----------------------------------------
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Quick tokenization result: 10 tokens
+
+5. Using custom configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[CUSTOM_START]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Custom config tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+
+6. Batch tokenization:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text 1: This is the first radiology report.
+Tokens 1: 8 tokens
+Text 2: This is the second medical document.
+Tokens 2: 7 tokens
+Text 3: Another sample text for batch processing.
+Tokens 3: 7 tokens
+
+7. Tokenizer information:
+----------------------------------------
+BERT config: {'model_name': 'bert-base-uncased', 'special_tokens': {'bos_token': '[DEC]'}, 'max_length': 512, 'padding': True, 'truncation': True, 'return_tensors': 'pt'}
+Vocabulary size: 30523
+Special tokens: {'bos_token': '[DEC]', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}
+
+
+=== XrayGPT Specific Usage ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+Using BLIP2 BERT tokenizer for radiology report:
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Report length: 241 characters
+Number of tokens: 54
+First 10 tokens: ['findings', ':', 'the', 'chest', 'x', '-', 'ray', 'shows', 'clear', 'lung']
+Last 10 tokens: ['intact', '.', 'impression', ':', 'normal', 'chest', 'x', '-', 'ray', '.']
+Decoded text matches original: False
+(demo) test@MYTSA00001:~/Downloads/Tokenization$ python example_usage.py
+=== Generic Tokenizer Manager Demo ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+📋 Available Tokenizers:
+----------------------------------------
+ 1. bert
+ 2. bert_large
+ 3. blip2_bert
+ 4. gpt2
+ 5. llama
+ 6. roberta
+ 7. vicuna
+ 8. vicuna_llm
+
+🎯 Select a tokenizer for demonstration:
+Enter your choice (1-8) or press Enter for 'bert': 8
+
+✅ Selected tokenizer: vicuna_llm
+
+1. Using TokenizerManager with vicuna_llm:
+----------------------------------------
+Loading vicuna_llm tokenizer...
+ERROR:tokenizer_manager:Error loading tokenizer lmsys/vicuna-7b-v1.5: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+Error loading vicuna_llm: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+Falling back to BERT tokenizer...
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text: This is a sample radiology report for testing.
+Tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+Token IDs: [101, 2023, 2003, 1037, 7099, 2557, 6483, 3189, 2005, 5604, 1012, 102]
+
+2. Using XrayGPT BLIP2 BERT configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text: This is a sample radiology report for testing.
+Tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+Token IDs: [101, 2023, 2003, 1037, 7099, 2557, 6483, 3189, 2005, 5604, 1012, 102]
+
+3. Using Vicuna tokenizer:
+----------------------------------------
+ERROR:tokenizer_manager:Error loading tokenizer lmsys/vicuna-7b-v1.5: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+Note: Vicuna tokenizer not available locally: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+
+4. Using quick_tokenize function:
+----------------------------------------
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Quick tokenization result: 10 tokens
+
+5. Using custom configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[CUSTOM_START]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Custom config tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+
+6. Batch tokenization:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text 1: This is the first radiology report.
+Tokens 1: 8 tokens
+Text 2: This is the second medical document.
+Tokens 2: 7 tokens
+Text 3: Another sample text for batch processing.
+Tokens 3: 7 tokens
+
+7. Tokenizer information:
+----------------------------------------
+BERT config: {'model_name': 'bert-base-uncased', 'special_tokens': {'bos_token': '[DEC]'}, 'max_length': 512, 'padding': True, 'truncation': True, 'return_tensors': 'pt'}
+Vocabulary size: 30523
+Special tokens: {'bos_token': '[DEC]', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}
+
+
+=== XrayGPT Specific Usage ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+Using BLIP2 BERT tokenizer for radiology report:
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Report length: 241 characters
+Number of tokens: 54
+First 10 tokens: ['findings', ':', 'the', 'chest', 'x', '-', 'ray', 'shows', 'clear', 'lung']
+Last 10 tokens: ['intact', '.', 'impression', ':', 'normal', 'chest', 'x', '-', 'ray', '.']
+Decoded text matches original: False
+(demo) test@MYTSA00001:~/Downloads/Tokenization$ python example_usage.py
+=== Generic Tokenizer Manager Demo ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+📋 Available Tokenizers:
+----------------------------------------
+ 1. bert
+ 2. bert_large
+ 3. blip2_bert
+ 4. gpt2
+ 5. llama
+ 6. roberta
+ 7. vicuna
+ 8. vicuna_llm
+
+🎯 Select a tokenizer for demonstration:
+Enter your choice (1-8) or press Enter for 'bert': 7
+
+✅ Selected tokenizer: vicuna
+
+1. Using TokenizerManager with vicuna:
+----------------------------------------
+Loading vicuna tokenizer...
+ERROR:tokenizer_manager:Error loading tokenizer lmsys/vicuna-7b-v1.5: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+Error loading vicuna: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+Falling back to BERT tokenizer...
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text: This is a sample radiology report for testing.
+Tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+Token IDs: [101, 2023, 2003, 1037, 7099, 2557, 6483, 3189, 2005, 5604, 1012, 102]
+
+2. Using XrayGPT BLIP2 BERT configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text: This is a sample radiology report for testing.
+Tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+Token IDs: [101, 2023, 2003, 1037, 7099, 2557, 6483, 3189, 2005, 5604, 1012, 102]
+
+3. Using Vicuna tokenizer:
+----------------------------------------
+ERROR:tokenizer_manager:Error loading tokenizer lmsys/vicuna-7b-v1.5: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+Note: Vicuna tokenizer not available locally: 
+ requires the protobuf library but it was not found in your environment. Check out the instructions on the
+installation page of its repo: https://github.com/protocolbuffers/protobuf/tree/master/python#installation and follow the ones
+that match your environment. Please note that you may need to restart your runtime after installation.
+
+
+4. Using quick_tokenize function:
+----------------------------------------
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Quick tokenization result: 10 tokens
+
+5. Using custom configuration:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[CUSTOM_START]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Custom config tokens: ['this', 'is', 'a', 'sample', 'radio', '##logy', 'report', 'for', 'testing', '.']
+
+6. Batch tokenization:
+----------------------------------------
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Text 1: This is the first radiology report.
+Tokens 1: 8 tokens
+Text 2: This is the second medical document.
+Tokens 2: 7 tokens
+Text 3: Another sample text for batch processing.
+Tokens 3: 7 tokens
+
+7. Tokenizer information:
+----------------------------------------
+BERT config: {'model_name': 'bert-base-uncased', 'special_tokens': {'bos_token': '[DEC]'}, 'max_length': 512, 'padding': True, 'truncation': True, 'return_tensors': 'pt'}
+Vocabulary size: 30523
+Special tokens: {'bos_token': '[DEC]', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}
+
+
+=== XrayGPT Specific Usage ===
+
+INFO:tokenizer_manager:Configuration loaded from tokenizer_config.yaml
+Using BLIP2 BERT tokenizer for radiology report:
+INFO:tokenizer_manager:Added special tokens: {'bos_token': '[DEC]'}
+INFO:tokenizer_manager:Tokenizer loaded: bert-base-uncased
+Report length: 241 characters
+Number of tokens: 54
+First 10 tokens: ['findings', ':', 'the', 'chest', 'x', '-', 'ray', 'shows', 'clear', 'lung']
+Last 10 tokens: ['intact', '.', 'impression', ':', 'normal', 'chest', 'x', '-', 'ray', '.']
+Decoded text matches original: False
+(demo) test@MYTSA00001:~/Downloads/Tokenization$ 
