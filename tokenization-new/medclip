@@ -1,0 +1,201 @@
+                          MedCLIP Training Data & Tokenization: Complete Breakdown                             ┃ │
+│ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │
+│                                                                                                                      │
+│ Based on my analysis of the MedCLIP codebase, here's exactly what data is used, how it's fed to the model, and the   │
+│ tokenization process:                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                📊 Training Data Used                                                 │
+│                                                                                                                      │
+│                                                  Dataset Structure                                                   │
+│                                                                                                                      │
+│  • File: MedCLIP/datav2/captions.csv                                                                                 │
+│  • Total samples: 2,262 image-caption pairs                                                                          │
+│  • Format: image,caption                                                                                             │
+│  • Split: 90% training (~2,036), 10% validation (~226)                                                               │
+│                                                                                                                      │
+│                                                 Exact Data Examples                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  image,caption                                                                                                       │
+│  synpic100052.jpg,"a Multiple or Montage plane MR scan of Spine Trauma on a 57 year old female depicting Traumatic   │
+│  Thoracic Aortic Aneurysm"                                                                                           │
+│  synpic100082.jpg,"a Multiple or Montage plane MR scan of Spine Trauma on a 52 year old male depicting Disc          │
+│  herniation complex at C3-4 and 5-6"                                                                                 │
+│  synpic100213.jpg,"a Lateral plane XR scan of Musculoskeletal Trauma on a 24 year old male depicting Fracture of th  │
+│  fifth metatarsal"                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                            🔄 Data Flow Through Training                                             │
+│                                                                                                                      │
+│                                                 Step 1: Data Loading                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # From main.ipynb                                                                                                   │
+│  def make_train_valid_dfs():                                                                                         │
+│      dataframe = pd.read_csv(f"{CFG.captions_path}/captions.csv")                                                    │
+│      train, test = train_test_split(dataframe, test_size=.1, train_size=.9,                                          │
+│                                     shuffle=True, random_state=77)                                                   │
+│      return train, test                                                                                              │
+│                                                                                                                      │
+│  testing_df, training_df = make_train_valid_dfs()                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                               Step 2: Dataset Creation                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  class CLIPDataset(torch.utils.data.Dataset):                                                                        │
+│      def __init__(self, image_filenames, captions, tokenizer, transforms):                                           │
+│          self.image_filenames = image_filenames  # ['synpic100052.jpg', ...]                                         │
+│          self.captions = list(captions)          # ['a Multiple or Montage...', ...]                                 │
+│                                                                                                                      │
+│          # TOKENIZATION HAPPENS HERE - ALL CAPTIONS AT ONCE                                                          │
+│          self.encoded_captions = tokenizer(                                                                          │
+│              list(captions),           # All captions in dataset                                                     │
+│              padding=True,             # Pad to same length                                                          │
+│              truncation=True,          # Cut if too long                                                             │
+│              max_length=CFG.max_length # 200 tokens                                                                  │
+│          )                                                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                             Step 3: Tokenization Process                                             │
+│                                                                                                                      │
+│ Tokenizer Used: Bio_ClinicalBERT (medical domain BERT)                                                               │
+│                                                                                                                      │
+│ Example Tokenization:                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Input text:                                                                                                       │
+│  caption = "a Multiple or Montage plane MR scan of Spine Trauma on a 57 year old female depicting Traumatic Thoraci  │
+│  Aortic Aneurysm"                                                                                                    │
+│                                                                                                                      │
+│  # After tokenization:                                                                                               │
+│  encoded = tokenizer(caption, padding=True, truncation=True, max_length=200)                                         │
+│                                                                                                                      │
+│  # Result:                                                                                                           │
+│  {                                                                                                                   │
+│      'input_ids': [101, 1037, 3674, 2030, 15805, 4946, 2720, 26061, 1997, 8560, 11105, 2006, 1037, 4293, 2095, 2214  │
+│  2931, 11230, 11105, 11105, 102, 0, 0, ...],                                                                         │
+│      'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, ...]                    │
+│  }                                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Token Breakdown:                                                                                                     │
+│                                                                                                                      │
+│  • 101 = [CLS] (start token)                                                                                         │
+│  • 1037 = "a"                                                                                                        │
+│  • 3674 = "multiple"                                                                                                 │
+│  • 2030 = "or"                                                                                                       │
+│  • 15805 = "montage"                                                                                                 │
+│  • 4946 = "plane"                                                                                                    │
+│  • 2720 = "mr"                                                                                                       │
+│  • 26061 = "scan"                                                                                                    │
+│  • 102 = [SEP] (end token)                                                                                           │
+│  • 0 = [PAD] (padding)                                                                                               │
+│                                                                                                                      │
+│                                                Step 4: Batch Creation                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  def build_loaders(dataframe, tokenizer, mode):                                                                      │
+│      dataset = CLIPDataset(                                                                                          │
+│          dataframe["image"].values,    # Image filenames                                                             │
+│          dataframe["caption"].values,  # Medical captions                                                            │
+│          tokenizer=tokenizer,          # Bio_ClinicalBERT                                                            │
+│          transforms=transforms         # Image preprocessing                                                         │
+│      )                                                                                                               │
+│                                                                                                                      │
+│      dataloader = torch.utils.data.DataLoader(                                                                       │
+│          dataset,                                                                                                    │
+│          batch_size=12,               # 12 samples per batch                                                         │
+│          num_workers=2,                                                                                              │
+│          shuffle=True                                                                                                │
+│      )                                                                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                            Step 5: Single Item Processing                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  def __getitem__(self, idx):                                                                                         │
+│      # Get pre-tokenized text                                                                                        │
+│      item = {                                                                                                        │
+│          'input_ids': torch.tensor(self.encoded_captions['input_ids'][idx]),                                         │
+│          'attention_mask': torch.tensor(self.encoded_captions['attention_mask'][idx])                                │
+│      }                                                                                                               │
+│                                                                                                                      │
+│      # Load and process image                                                                                        │
+│      image = cv2.imread(f"{CFG.image_path}/{self.image_filenames[idx]}")                                             │
+│      image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)                                                                  │
+│      image = self.transforms(image=image)['image']  # Resize to 224x224, normalize                                   │
+│      item['image'] = torch.tensor(image).permute(2, 0, 1).float()                                                    │
+│      item['caption'] = self.captions[idx]  # Original text (for reference)                                           │
+│                                                                                                                      │
+│      return item                                                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                             🎯 Training Batch Structure                                              │
+│                                                                                                                      │
+│ Each training batch contains:                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  batch = {                                                                                                           │
+│      'image': torch.tensor([12, 3, 224, 224]),      # 12 medical images                                              │
+│      'input_ids': torch.tensor([12, 200]),          # 12 tokenized captions                                          │
+│      'attention_mask': torch.tensor([12, 200]),     # 12 attention masks                                             │
+│      'caption': ['caption1', 'caption2', ...]       # 12 original texts (not used in forward pass)                   │
+│  }                                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                🔥 Model Forward Pass                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│  def forward(self, batch):                                                                                           │
+│      # Encode images: (12, 3, 224, 224) -> (12, 2048)                                                                │
+│      image_features = self.image_encoder(batch["image"])                                                             │
+│                                                                                                                      │
+│      # Encode text: (12, 200) -> (12, 768)                                                                           │
+│      text_features = self.text_encoder(                                                                              │
+│          input_ids=batch["input_ids"],                                                                               │
+│          attention_mask=batch["attention_mask"]                                                                      │
+│      )                                                                                                               │
+│                                                                                                                      │
+│      # Project to same dimension: (12, 256)                                                                          │
+│      image_embeddings = self.image_projection(image_features)                                                        │
+│      text_embeddings = self.text_projection(text_features)                                                           │
+│                                                                                                                      │
+│      # Calculate contrastive loss                                                                                    │
+│      logits = (text_embeddings @ image_embeddings.T) / self.temperature                                              │
+│      # ... loss calculation ...                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                📝 Text Structure Used                                                │
+│                                                                                                                      │
+│ Template: "a [Plane] plane [Modality] scan of [Location] [Category] on a [Age] year old [Gender] depicting           │
+│ [Diagnosis]"                                                                                                         │
+│                                                                                                                      │
+│ Components:                                                                                                          │
+│                                                                                                                      │
+│  • Plane: Axial, Sagittal, Coronal, Multiple or Montage                                                              │
+│  • Modality: MR, CT, XR (X-Ray)                                                                                      │
+│  • Location: Spine, Brain and Neuro, Chest, Musculoskeletal                                                          │
+│  • Category: Trauma, Neoplasm, Infection, etc.                                                                       │
+│  • Demographics: Age + Gender                                                                                        │
+│  • Diagnosis: Detailed medical condition                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                🎯 Key Training Facts                                                 │
+│                                                                                                                      │
+│  • Total training samples: ~2,036 medical image-caption pairs                                                        │
+│  • Batch size: 12 pairs per batch                                                                                    │
+│  • Text tokenizer: Bio_ClinicalBERT (medical domain)                                                                 │
+│  • Max text length: 200 tokens                                                                                       │
+│  • Image processing: Resize to 224x224, normalize                                                                    │
+│  • Training epochs: 2                                                                                                │
+│  • Learning objective: Contrastive alignment between medical images and clinical text                                │
+│                                                                                                                      │
+│ The model learns to create a shared embedding space where medical images and their corresponding diagnostic          │
+│ descriptions have high similarity, enabling zero-shot medical image captioning and text-based medical image          │
+│ retrieval.                                                                                                      
