@@ -1,0 +1,96 @@
+# Tokenizer Configuration File
+# This file allows you to configure different tokenizers
+
+# Default tokenizer configuration
+default:
+  type: "bert"
+  model_name: "bert-base-uncased"
+  special_tokens:
+    bos_token: "[DEC]"
+  max_length: 512
+  padding: true
+  truncation: true
+  return_tensors: "pt"
+
+# Available tokenizer configurations
+tokenizers:
+  bert:
+    model_name: "bert-base-uncased"
+    special_tokens:
+      bos_token: "[DEC]"
+    max_length: 512
+    padding: true
+    truncation: true
+    return_tensors: "pt"
+  
+  bert_large:
+    model_name: "bert-large-uncased"
+    special_tokens:
+      bos_token: "[DEC]"
+    max_length: 512
+    padding: true
+    truncation: true
+    return_tensors: "pt"
+  
+  llama:
+    model_name: "openlm-research/open_llama_3b_v2"
+    special_tokens:
+      pad_token: "[PAD]"
+    max_length: 2048
+    padding: true
+    truncation: true
+    return_tensors: "pt"
+  
+  vicuna:
+    model_name: "lmsys/vicuna-7b-v1.5"
+    special_tokens:
+      pad_token: "[PAD]"
+    max_length: 2048
+    padding: true
+    truncation: true
+    return_tensors: "pt"
+  
+  gpt2:
+    model_name: "gpt2"
+    special_tokens:
+      pad_token: "[PAD]"
+    max_length: 1024
+    padding: true
+    truncation: true
+    return_tensors: "pt"
+  
+  roberta:
+    model_name: "roberta-base"
+    special_tokens:
+      bos_token: "<s>"
+    max_length: 512
+    padding: true
+    truncation: true
+    return_tensors: "pt"
+
+# Custom tokenizer paths (for local models)
+custom_paths: {}
+  # Example: custom_bert: "/path/to/custom/bert/tokenizer"
+  # Example: custom_llama: "/path/to/custom/llama/tokenizer"
+
+# XrayGPT specific configurations
+xraygpt:
+  blip2_bert:
+    model_name: "bert-base-uncased"
+    special_tokens:
+      bos_token: "[DEC]"
+    max_length: 512
+    padding: true
+    truncation: true
+    return_tensors: "pt"
+    description: "BLIP2 BERT-based tokenizer for XrayGPT"
+  
+  vicuna_llm:
+    model_name: "lmsys/vicuna-7b-v1.5"
+    special_tokens:
+      pad_token: "[PAD]"
+    max_length: 2048
+    padding: true
+    truncation: true
+    return_tensors: "pt"
+    description: "Vicuna LLM tokenizer for XrayGPT"

@@ -1,0 +1,132 @@
+# RAG System Configuration
+# Complete configuration for the RAG system
+
+rag_config:
+  # Tokenizer configuration
+  tokenizer_type: "bert"  # Options: bert, bert_large, roberta, gpt2, llama, vicuna
+  
+  # Embedding model configuration
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+  
+  # Chunking parameters
+  max_tokens_per_chunk: 512
+  chunk_overlap: 50
+  
+  # Retrieval parameters
+  max_context_tokens: 2048
+  top_k_retrieval: 10
+  similarity_threshold: 0.7
+  
+  # Storage configuration
+  storage_path: "./rag_data"
+  
+  # Device configuration
+  device: "auto"  # Options: auto, cpu, cuda
+
+# Alternative configurations for different use cases
+configurations:
+  # Medical/Radiology focused configuration
+  medical:
+    tokenizer_type: "bert"
+    embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+    max_tokens_per_chunk: 256
+    chunk_overlap: 25
+    max_context_tokens: 1024
+    top_k_retrieval: 5
+    similarity_threshold: 0.8
+    storage_path: "./medical_rag_data"
+    device: "auto"
+  
+  # Large document configuration
+  large_docs:
+    tokenizer_type: "bert_large"
+    embedding_model: "sentence-transformers/all-mpnet-base-v2"
+    max_tokens_per_chunk: 1024
+    chunk_overlap: 100
+    max_context_tokens: 4096
+    top_k_retrieval: 15
+    similarity_threshold: 0.6
+    storage_path: "./large_docs_rag_data"
+    device: "auto"
+  
+  # Fast/lightweight configuration
+  lightweight:
+    tokenizer_type: "bert"
+    embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+    max_tokens_per_chunk: 128
+    chunk_overlap: 10
+    max_context_tokens: 512
+    top_k_retrieval: 5
+    similarity_threshold: 0.75
+    storage_path: "./lightweight_rag_data"
+    device: "cpu"
+
+# Document processing settings
+document_processing:
+  # Text preprocessing options
+  remove_extra_whitespace: true
+  normalize_unicode: true
+  remove_special_chars: false
+  
+  # Chunking strategy
+  chunking_strategy: "token_based"  # Options: token_based, sentence_based, paragraph_based
+  
+  # Overlap strategy
+  overlap_strategy: "token_overlap"  # Options: token_overlap, sentence_overlap
+
+# Retrieval settings
+retrieval:
+  # Similarity metrics
+  similarity_metric: "cosine"  # Options: cosine, euclidean, dot_product
+  
+  # Reranking options
+  enable_reranking: false
+  reranking_model: null
+  
+  # Hybrid search options
+  enable_hybrid_search: false
+  lexical_weight: 0.3
+  semantic_weight: 0.7
+
+# Generation settings (for future LLM integration)
+generation:
+  # Model settings
+  model_name: null
+  max_length: 512
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 50
+  
+  # Response formatting
+  include_sources: true
+  max_sources: 5
+  source_format: "detailed"  # Options: simple, detailed, full
+
+# Evaluation settings
+evaluation:
+  # Metrics to track
+  track_retrieval_metrics: true
+  track_generation_metrics: false
+  
+  # Quality thresholds
+  min_similarity_score: 0.5
+  max_response_length: 1000
+  
+  # Logging
+  log_queries: true
+  log_responses: false
+  log_level: "INFO"
+
+# Performance settings
+performance:
+  # Batch processing
+  batch_size: 32
+  max_workers: 4
+  
+  # Caching
+  enable_embedding_cache: true
+  cache_size: 1000
+  
+  # Memory management
+  clear_cache_interval: 100
+  max_memory_usage: "2GB"
