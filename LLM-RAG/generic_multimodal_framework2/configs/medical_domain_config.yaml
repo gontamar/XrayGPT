@@ -1,0 +1,135 @@
+# Medical Domain Configuration Template
+# Optimized for medical imaging and clinical text analysis
+
+domain:
+  name: "medical"
+  description: "Medical imaging and clinical text analysis"
+
+validation:
+  domain: "medical"
+  domain_name: "medical"
+  min_image_size: [224, 224]
+  max_image_size: [2048, 2048]  # Higher resolution for medical images
+  min_text_length: 10
+  max_text_length: 2000  # Longer text for clinical reports
+  forbidden_text_patterns: ["xxxx", "redacted", "###", "[REDACTED]", "[PHI]", "CONFIDENTIAL"]
+  required_channels: [1, 3]  # Support both grayscale X-rays and color images
+  require_domain_content: true  # Enforce medical content
+  convert_to_grayscale: true  # Convert to grayscale for X-ray analysis
+  apply_histogram_equalization: true  # Enhance medical image contrast
+  
+  domain_keywords: 
+    - "chest"
+    - "lung"
+    - "heart"
+    - "radiograph"
+    - "x-ray"
+    - "ct"
+    - "mri"
+    - "patient"
+    - "diagnosis"
+    - "findings"
+    - "impression"
+    - "abnormal"
+    - "normal"
+    - "pathology"
+    - "radiology"
+    - "clinical"
+    - "medical"
+    - "hospital"
+    - "doctor"
+    - "physician"
+  
+  domain_replacements:
+    "xray": "x-ray"
+    "cxr": "chest x-ray"
+    "pa and lateral": "posteroanterior and lateral"
+    "lat": "lateral"
+    "ap": "anteroposterior"
+    "ct scan": "computed tomography"
+    "mri scan": "magnetic resonance imaging"
+
+tokenization:
+  text:
+    type: "text"
+    tokenizer_type: "bert"
+    model_name: "emilyalsentzer/Bio_ClinicalBERT"  # Medical-specific BERT
+    max_length: 512
+    padding: "max_length"
+    truncation: true
+    add_special_tokens: true
+    special_tokens:
+      additional_special_tokens: ["[FINDING]", "[IMPRESSION]", "[DIAGNOSIS]"]
+  
+  image:
+    type: "vision"
+    method: "patch"
+    patch_size: 16
+    image_size: 224
+    vocab_size: 8192
+
+encoding:
+  device: "cuda"
+  
+  text:
+    type: "bert"
+    model_name: "emilyalsentzer/Bio_ClinicalBERT"
+    hidden_size: 768
+    device: "cuda"
+    pooling_strategy: "cls"
+    freeze_encoder: false
+    encoder_type: "bert"
+    
+  image:
+    type: "medical_clip"  # Use medical-specific vision encoder
+    model_name: "flaviagiammarino/pubmed-clip-vit-base-patch32"
+    hidden_size: 768
+    device: "cuda"
+    freeze_encoder: false
+    encoder_type: "vision_transformer"
+    image_size: 224
+    patch_size: 16
+
+attention:
+  self_attention:
+    enabled: true
+    num_attention_heads: 12
+    hidden_size: 768
+    attention_dropout: 0.1
+    layer_norm_eps: 1e-12
+    
+  cross_attention:
+    enabled: true
+    num_attention_heads: 12
+    hidden_size: 768
+    attention_dropout: 0.1
+    cross_attention_freq: 2
+    save_attention: true
+    
+  qformer:
+    enabled: true  # Enable Q-Former for medical analysis
+    num_query_tokens: 32
+    num_layers: 6
+    cross_attention_freq: 2
+
+decoding:
+  type: "llm"
+  model_name: "microsoft/BioGPT-Large"  # Medical-specific language model
+  max_new_tokens: 256
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 50
+  do_sample: true
+  num_beams: 1
+  repetition_penalty: 1.1
+  length_penalty: 1.0
+  early_stopping: true
+  pad_token_id: 1
+  eos_token_id: 2
+
+model:
+  name: "MedicalMultiModalModel"
+  device: "cuda"
+  dtype: "float16"
+  gradient_checkpointing: false
+  training_mode: false

@@ -1,0 +1,104 @@
+# General Domain Configuration Template
+# For everyday vision-language tasks and general multimodal AI
+
+domain:
+  name: "general"
+  description: "General vision-language understanding"
+
+validation:
+  domain: "general"
+  domain_name: "general"
+  min_image_size: [224, 224]
+  max_image_size: [1024, 1024]
+  min_text_length: 3
+  max_text_length: 1000
+  forbidden_text_patterns: ["[REDACTED]", "###"]  # Minimal restrictions
+  required_channels: [1, 3, 4]  # Support grayscale, RGB, and RGBA
+  require_domain_content: false  # No domain restrictions
+  convert_to_grayscale: false
+  apply_histogram_equalization: false
+  
+  domain_keywords: []  # No specific keywords required
+  
+  domain_replacements: {}  # No specific replacements
+
+tokenization:
+  text:
+    type: "text"
+    tokenizer_type: "bert"
+    model_name: "bert-base-uncased"
+    max_length: 512
+    padding: "max_length"
+    truncation: true
+    add_special_tokens: true
+    special_tokens: {}
+  
+  image:
+    type: "vision"
+    method: "patch"
+    patch_size: 16
+    image_size: 224
+    vocab_size: 8192
+
+encoding:
+  device: "cuda"
+  
+  text:
+    type: "clip_text"
+    model_name: "openai/clip-vit-base-patch32"
+    hidden_size: 512
+    device: "cuda"
+    pooling_strategy: "cls"
+    freeze_encoder: false
+    encoder_type: "clip_text"
+    
+  image:
+    type: "clip_vision"
+    model_name: "openai/clip-vit-base-patch32"
+    hidden_size: 512
+    device: "cuda"
+    freeze_encoder: false
+    encoder_type: "vision_transformer"
+    image_size: 224
+    patch_size: 32
+
+attention:
+  self_attention:
+    enabled: true
+    num_attention_heads: 8
+    hidden_size: 512
+    attention_dropout: 0.1
+    layer_norm_eps: 1e-12
+    
+  cross_attention:
+    enabled: true
+    num_attention_heads: 8
+    hidden_size: 512
+    attention_dropout: 0.1
+    cross_attention_freq: 1  # More frequent cross-attention
+    save_attention: false
+    
+  qformer:
+    enabled: false  # Simpler attention for general tasks
+
+decoding:
+  type: "llm"
+  model_name: "microsoft/DialoGPT-medium"
+  max_new_tokens: 128
+  temperature: 0.8
+  top_p: 0.9
+  top_k: 40
+  do_sample: true
+  num_beams: 1
+  repetition_penalty: 1.0
+  length_penalty: 1.0
+  early_stopping: true
+  pad_token_id: 50256
+  eos_token_id: 50256
+
+model:
+  name: "GeneralMultiModalModel"
+  device: "cuda"
+  dtype: "float32"  # Use float32 for better compatibility
+  gradient_checkpointing: false
+  training_mode: false
