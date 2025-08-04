@@ -13,3 +13,10 @@ on similar lines look for github code base that uses a Vector Store to be used t
 
 implement previous created RAg for our system included in the repositrory of /home/test/Amit/RAG_LLM/Tokenization
 
+we need to build a generic Multimodal AI framework for the following requirements 1)Data comes from any domains first will check it 
+then apply some conditiong on that(like blank image not accepatable to learn and some text xxxx) based on domain data then feed to the
+tokenizer for tokenization based on that data uses tokenizer 2)then feed to the encoder to generate the embeddings in this step first 
+select the encoder in that which encoder uses to form embeddings all are set in config files 3)in this step apply self attension for 
+what needs to focus to learn the model and cross attension between text and image features to form the final data 4)decode the 
+response come from the cross attension to get readable text will be the response use xraygpt code as a reference but implement in 
+generic for the following conditions mentioned above 
