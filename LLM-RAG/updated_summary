@@ -1,0 +1,301 @@
+  📋 Detailed Workflow: Text Processing Pipeline with Standardized Input Validation                 ┃ │
+│ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │
+│                                                                                                                      │
+│ Based on the code analysis, here's the comprehensive workflow of the text processing system:                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                              🔄 Complete Pipeline Flow                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  Raw Text Input                                                                                                      │
+│        ↓                                                                                                             │
+│  [1] INPUT VALIDATION                                                                                                │
+│        ↓                                                                                                             │
+│  [2] INPUT PREPROCESSING                                                                                             │
+│        ↓                                                                                                             │
+│  [3] TOKENIZATION                                                                                                    │
+│        ↓                                                                                                             │
+│  [4] EMBEDDING GENERATION                                                                                            │
+│        ↓                                                                                                             │
+│  Final Output (Embeddings + Metadata)                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                      [STAGE 1] INPUT VALIDATION & PREPROCESSING                                      │
+│                                                                                                                      │
+│                                             📍 File: input_processor.py                                              │
+│                                                                                                                      │
+│                                              1.1 Configuration Loading                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # From tokenizer_config.yaml                                                                                        │
+│  input_validation:                                                                                                   │
+│    strict:    # Production (1-1000 chars, extensive restrictions)                                                    │
+│    standard:  # General use (1-2000 chars, balanced restrictions)                                                    │
+│    lenient:   # Development (0-5000 chars, minimal restrictions)                                                     │
+│                                                                                                                      │
+│  input_preprocessing:                                                                                                │
+│    strict:    # Full normalization (quotes, dashes, punctuation)                                                     │
+│    standard:  # Basic normalization (quotes, whitespace)                                                             │
+│    minimal:   # Essential only (Unicode, whitespace)                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                1.2 Validation Process                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  def validate_input(text: str, validation_profile: str = "standard") -> ValidationResult:                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step-by-step validation:                                                                                             │
+│                                                                                                                      │
+│  1 Type Check: Ensure input is string                                                                                │
+│  2 Empty Check: Verify non-empty content                                                                             │
+│  3 Length Validation: Check min/max character limits                                                                 │
+│  4 Character Validation: Check forbidden characters/patterns                                                         │
+│  5 Content Validation: Verify meaningful content (if required)                                                       │
+│  6 Format Validation: Check structure rules                                                                          │
+│                                                                                                                      │
+│ Validation Profiles:                                                                                                 │
+│                                                                                                                      │
+│  • Strict: 1-1000 chars, forbidden: @#$%^&*<>|\, requires meaningful content                                         │
+│  • Standard: 1-2000 chars, forbidden: @#$%^&*, requires meaningful content                                           │
+│  • Lenient: 0-5000 chars, minimal restrictions, optional content check                                               │
+│                                                                                                                      │
+│                                              1.3 Preprocessing Process                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  def preprocess_text(text: str, preprocessing_profile: str = "standard") -> str:                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step-by-step preprocessing:                                                                                          │
+│                                                                                                                      │
+│  1 Unicode Normalization: NFC normalization                                                                          │
+│  2 Whitespace Processing: Strip and normalize spaces                                                                 │
+│  3 Quote Normalization: Smart quotes → regular quotes                                                                │
+│  4 Dash Normalization: Em/en dashes → hyphens (strict only)                                                          │
+│  5 Zero-width Removal: Remove invisible characters (strict only)                                                     │
+│  6 Punctuation Normalization: Multiple punctuation → single (strict only)                                            │
+│  7 Character Repetition: Limit consecutive characters                                                                │
+│                                                                                                                      │
+│                                               1.4 Complete Processing                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  def process_input(text: str, validation_profile: str, preprocessing_profile: str) -> ValidationResult:              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Processing flow:                                                                                                     │
+│                                                                                                                      │
+│  1 Initial Validation → Get validation result                                                                        │
+│  2 Apply Preprocessing → Clean and normalize text                                                                    │
+│  3 Final Validation → Validate processed text                                                                        │
+│  4 Combine Results → Create comprehensive result                                                                     │
+│                                                                                                                      │
+│ StandardizedValidationResult includes:                                                                               │
+│                                                                                                                      │
+│  • ✅ is_valid: Boolean validation status                                                                            │
+│  • 📝 original_text: Input text                                                                                      │
+│  • 🔄 processed_text: Cleaned text                                                                                   │
+│  • ❌ errors: Validation errors                                                                                      │
+│  • ⚠️ warnings: Non-critical issues                                                                                   │
+│  • 💡 suggestions: Actionable recommendations                                                                        │
+│  • 📊 processing_time_ms: Performance metrics                                                                        │
+│  • 📈 original_length → processed_length: Length tracking                                                            │
+│  • 🔧 validation_profile, preprocessing_profile: Configuration used                                                  │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                                [STAGE 2] TOKENIZATION                                                │
+│                                                                                                                      │
+│                                             📍 File: tokenizer_class.py                                              │
+│                                                                                                                      │
+│                                             2.1 Tokenizer Initialization                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  tokenizer = Tokenizer(enable_input_processing=False)  # External processing                                         │
+│  tokenizer.load_tokenizer('bert')  # Load BERT tokenizer                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                               2.2 Tokenization Process                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  def tokenize(text: str, return_tensors: bool = True) -> Dict[str, Any]:                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Tokenization steps:                                                                                                  │
+│                                                                                                                      │
+│  1 Load Configuration: Get BERT settings from tokenizer_config.yaml                                                  │
+│  2 Apply Tokenizer: Use HuggingFace BERT tokenizer                                                                   │
+│  3 Generate Tokens: Create human-readable tokens                                                                     │
+│  4 Generate Token IDs: Create numerical token representations                                                        │
+│  5 Create Tensors: Convert to PyTorch tensors (if requested)                                                         │
+│                                                                                                                      │
+│ Output includes:                                                                                                     │
+│                                                                                                                      │
+│  • tokens: Human-readable token list                                                                                 │
+│  • token_ids: Numerical token representations                                                                        │
+│  • encoded: PyTorch tensors with attention masks                                                                     │
+│  • text: Processed input text                                                                                        │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                            [STAGE 3] EMBEDDING GENERATION                                            │
+│                                                                                                                      │
+│                                             📍 File: embedding_class.py                                              │
+│                                                                                                                      │
+│                                              3.1 Embedding Model Setup                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  embedding = Embedding()                                                                                             │
+│  embedding.load_embedding_model('bert', device='cpu')                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                3.2 Embedding Creation                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  def create_embeddings(text: str, device: str = 'cpu') -> Dict[str, Any]:                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Embedding process:                                                                                                   │
+│                                                                                                                      │
+│  1 Tokenize Input: Use internal tokenizer for consistency                                                            │
+│  2 Create Input Tensors: Convert to model-ready format                                                               │
+│  3 Generate Embeddings: Pass through BERT embedding layer                                                            │
+│  4 Return Results: Embeddings + metadata                                                                             │
+│                                                                                                                      │
+│ Custom BERT Embeddings:                                                                                              │
+│                                                                                                                      │
+│  • Word Embeddings: Token → vector mapping                                                                           │
+│  • Position Embeddings: Positional encoding                                                                          │
+│  • Layer Normalization: Stabilize training                                                                           │
+│  • Dropout: Regularization                                                                                           │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                             [STAGE 4] DEMO ORCHESTRATION                                             │
+│                                                                                                                      │
+│                                                   📍 File: demo.py                                                   │
+│                                                                                                                      │
+│                                                4.1 Pipeline Execution                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  def main():                                                                                                         │
+│      # Initialize components                                                                                         │
+│      tokenizer = Tokenizer(enable_input_processing=False)                                                            │
+│      embedding = Embedding()                                                                                         │
+│                                                                                                                      │
+│      # Load models                                                                                                   │
+│      tokenizer.load_tokenizer('bert')                                                                                │
+│      embedding.load_embedding_model('bert', device='cpu')                                                            │
+│                                                                                                                      │
+│      while True:                                                                                                     │
+│          user_input = input("Enter text: ")                                                                          │
+│                                                                                                                      │
+│          # Step 1: Validate input                                                                                    │
+│          processor = InputProcessor()                                                                                │
+│          validation_result = processor.validate_input(user_input, "standard")                                        │
+│                                                                                                                      │
+│          if not validation_result.is_valid:                                                                          │
+│              print(f"✗ Invalid: {validation_result.errors}")                                                         │
+│              print(f"💡 Suggestions: {validation_result.suggestions}")                                               │
+│              continue                                                                                                │
+│                                                                                                                      │
+│          # Step 2: Process text                                                                                      │
+│          processed_text = process_text(user_input)                                                                   │
+│                                                                                                                      │
+│          # Step 3: Tokenize                                                                                          │
+│          tokenize_result = tokenizer.tokenize(processed_text, return_tensors=False)                                  │
+│                                                                                                                      │
+│          # Step 4: Generate embeddings                                                                               │
+│          embed_result = embedding.create_embeddings(processed_text, device='cpu')                                    │
+│                                                                                                                      │
+│          # Display results                                                                                           │
+│          print(f"Processed: {processed_text}")                                                                       │
+│          print(f"Tokens: {tokenize_result['tokens']}")                                                               │
+│          print(f"Embeddings: {embed_result['embeddings'].shape}")                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                           🔧 Configuration-Driven Workflow                                           │
+│                                                                                                                      │
+│                                               Profile Selection Logic                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Environment-based profile selection                                                                               │
+│  if environment == "production":                                                                                     │
+│      validation_profile = "strict"                                                                                   │
+│      preprocessing_profile = "strict"                                                                                │
+│  elif environment == "development":                                                                                  │
+│      validation_profile = "lenient"                                                                                  │
+│      preprocessing_profile = "minimal"                                                                               │
+│  else:                                                                                                               │
+│      validation_profile = "standard"                                                                                 │
+│      preprocessing_profile = "standard"                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                 Error Handling Flow                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  try:                                                                                                                │
+│      # Validation                                                                                                    │
+│      result = processor.validate_input(text, profile)                                                                │
+│      if not result.is_valid:                                                                                         │
+│          return result  # Early exit with errors/suggestions                                                         │
+│                                                                                                                      │
+│      # Processing                                                                                                    │
+│      processed = processor.preprocess_text(text, profile)                                                            │
+│                                                                                                                      │
+│      # Tokenization                                                                                                  │
+│      tokens = tokenizer.tokenize(processed)                                                                          │
+│                                                                                                                      │
+│      # Embedding                                                                                                     │
+│      embeddings = embedding.create_embeddings(processed)                                                             │
+│                                                                                                                      │
+│  except Exception as e:                                                                                              │
+│      # Comprehensive error handling with context                                                                     │
+│      return error_result_with_suggestions                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                                 📊 Data Flow Summary                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│   Stage           Input        Processing                   Output                                                   │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                       │
+│   Validation      Raw text     Length/char/content checks   ValidationResult                                         │
+│   Preprocessing   Raw text     Normalization/cleaning       Clean text                                               │
+│   Tokenization    Clean text   BERT tokenizer               Tokens + IDs                                             │
+│   Embedding       Tokens       BERT embedding layer         Vector embeddings                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                   🎯 Key Features                                                    │
+│                                                                                                                      │
+│                                                  ✅ Standardization                                                  │
+│                                                                                                                      │
+│  • Consistent ValidationResult format across all operations                                                          │
+│  • Standard validation profiles for different environments                                                           │
+│  • Comprehensive error reporting with actionable suggestions                                                         │
+│                                                                                                                      │
+│                                              ✅ Performance Monitoring                                               │
+│                                                                                                                      │
+│  • Processing time tracking                                                                                          │
+│  • Length change monitoring                                                                                          │
+│  • Configuration version tracking                                                                                    │
+│                                                                                                                      │
+│                                                    ✅ Flexibility                                                    │
+│                                                                                                                      │
+│  • Multiple validation/preprocessing profiles                                                                        │
+│  • Configurable through YAML                                                                                         │
+│  • Environment-specific settings                                                                                     │
+│                                                                                                                      │
+│                                                 ✅ Production Ready                                                  │
+│                                                                                                                      │
+│  • Comprehensive error handling                                                                                      │
+│  • Detailed logging and metrics                                                                                      │
+│  • Extensible architecture                                                                                           │
+│                                                                                                                      │
+│ This workflow ensures robust, consistent, and traceable text processing from raw input to final embeddings with      │
+│ comprehensive validation and preprocessing at each stage.                
