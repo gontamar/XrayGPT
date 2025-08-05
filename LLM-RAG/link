@@ -20,3 +20,9 @@ select the encoder in that which encoder uses to form embeddings all are set in 
 what needs to focus to learn the model and cross attension between text and image features to form the final data 4)decode the 
 response come from the cross attension to get readable text will be the response use xraygpt code as a reference but implement in 
 generic for the following conditions mentioned above 
+
+
+ study this directory files  and tell me how the flow is and how is it structured, analyze properly
+
+ use this and propose a tokenization framework  which includes common stuff for tokenize logic and create a generic │
+│ framework that applies to all domains Tokenizer logic, consider this xraygpt as reference█  
