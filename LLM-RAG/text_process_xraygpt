@@ -1,0 +1,59 @@
+2. TEXT PROCESSING PIPELINE                                      │
+│                                                                                                      │
+│                                      Step 1: Text Preprocessing                                      │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/processors/blip_processors.py                                                       │
+│  class BlipCaptionProcessor:                                                                         │
+│      def pre_caption(self, caption):                                                                 │
+│          # Clean punctuation and normalize                                                           │
+│          caption = re.sub(r"([.!\"()*#:;~])", " ", caption.lower())                                  │
+│          caption = re.sub(r"\s{2,}", " ", caption)                                                   │
+│          caption = caption.rstrip("\n").strip(" ")                                                   │
+│                                                                                                      │
+│          # Truncate to max words                                                                     │
+│          caption_words = caption.split(" ")                                                          │
+│          if len(caption_words) > self.max_words:                                                     │
+│              caption = " ".join(caption_words[:self.max_words])                                      │
+│                                                                                                      │
+│          return caption                                                                              │
+│                                                                                                      │
+│                                                                                                      │
+│                                 Step 2: Prompt Template Application                                  │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/models/mini_gpt4.py                                                                 │
+│  def prompt_wrap(self, img_embeds, atts_img, prompt):                                                │
+│      # Split prompt at image placeholder                                                             │
+│      p_before, p_after = prompt.split('<ImageHere>')                                                 │
+│      # Example: "###Patient: " + "<ImageHere>" + " Describe this X-ray. ###Doctor: "                 │
+│                                                                                                      │
+│      # Tokenize and embed text segments                                                              │
+│      p_before_embeds = self.llama_model.model.embed_tokens(p_before_tokens.input_ids)                │
+│      p_after_embeds = self.llama_model.model.embed_tokens(p_after_tokens.input_ids)                  │
+│                                                                                                      │
+│      # Concatenate: [text_before] + [image_tokens] + [text_after]                                    │
+│      wrapped_img_embeds = torch.cat([p_before_embeds, img_embeds, p_after_embeds], dim=1)            │
+│      return wrapped_img_embeds, wrapped_atts_img                                                     │
+│                                                                                                      │
+│                                                                                                      │
+│                                   Step 3: Target Text Tokenization                                   │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/models/mini_gpt4.py                                                                 │
+│  def forward(self, samples):                                                                         │
+│      # Process target text                                                                           │
+│      text = [t + self.end_sym for t in samples["caption"]]  # Add "###" end symbol                   │
+│      to_regress_tokens = self.llama_tokenizer(                                                       │
+│          text,                                                                                       │
+│          return_tensors="pt",                                                                        │
+│          padding="longest",                                                                          │
+│          truncation=True,                                                                            │
+│          max_length=self.max_txt_len,                # 160 tokens max                                │
+│          add_special_tokens=False                                                                    │
+│      ).to(image.device)                                                                              │
+│                                                                                                      │
+│      # Convert to embeddings                                                                         │
+│      to_regress_embeds = self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)            │
+│                                                                                                      │
+│                                                                                                      │
