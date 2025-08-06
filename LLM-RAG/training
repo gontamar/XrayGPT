@@ -1,0 +1,297 @@
+🔍 Detailed Multimodal Processing Flow                                │
+│                                                                                                      │
+│                                     1. IMAGE PROCESSING PIPELINE                                     │
+│                                                                                                      │
+│                                     Step 1: Image Preprocessing                                      │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/processors/blip_processors.py                                                       │
+│  class Blip2ImageTrainProcessor:                                                                     │
+│      def __init__(self, image_size=224, min_scale=0.5, max_scale=1.0):                               │
+│          self.transform = transforms.Compose([                                                       │
+│              transforms.RandomResizedCrop(                                                           │
+│                  image_size,                                                                         │
+│                  scale=(min_scale, max_scale),           # Random crop 50-100%                       │
+│                  interpolation=InterpolationMode.BICUBIC,                                            │
+│              ),                                                                                      │
+│              transforms.ToTensor(),                      # Convert to [0,1] tensor                   │
+│              transforms.Normalize(                                                                   │
+│                  mean=(0.48145466, 0.4578275, 0.40821073),  # ImageNet normalization                 │
+│                  std=(0.26862954, 0.26130258, 0.27577711)                                            │
+│              ),                                                                                      │
+│          ])                                                                                          │
+│                                                                                                      │
+│                                                                                                      │
+│ Output: [3, 224, 224] normalized tensor                                                              │
+│                                                                                                      │
+│                                       Step 2: Patch Embedding                                        │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/models/eva_vit.py                                                                   │
+│  class PatchEmbed(nn.Module):                                                                        │
+│      def __init__(self, img_size=224, patch_size=16, embed_dim=768):                                 │
+│          # Convolutional patch embedding                                                             │
+│          self.proj = nn.Conv2d(3, embed_dim, kernel_size=patch_size, stride=patch_size)              │
+│                                                                                                      │
+│      def forward(self, x):                                                                           │
+│          B, C, H, W = x.shape                        # [batch, 3, 224, 224]                          │
+│          x = self.proj(x).flatten(2).transpose(1, 2) # [batch, 196, 768]                             │
+│          return x                                                                                    │
+│                                                                                                      │
+│                                                                                                      │
+│ Process:                                                                                             │
+│                                                                                                      │
+│  • 224×224 image → 16×16 patches → 196 patches (14×14 grid)                                          │
+│  • Each patch → 1408D embedding (EVA-CLIP-G) Output: [batch, 196, 1408]                              │
+│                                                                                                      │
+│                                      Step 3: Vision Transformer                                      │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/models/eva_vit.py                                                                   │
+│  class VisionTransformer:                                                                            │
+│      def forward_features(self, x):                                                                  │
+│          x = self.patch_embed(x)                     # [batch, 196, 1408]                            │
+│                                                                                                      │
+│          # Add CLS token                                                                             │
+│          cls_tokens = self.cls_token.expand(batch_size, -1, -1)                                      │
+│          x = torch.cat((cls_tokens, x), dim=1)       # [batch, 197, 1408]                            │
+│                                                                                                      │
+│          # Add positional embeddings                                                                 │
+│          x = x + self.pos_embed                      # [batch, 197, 1408]                            │
+│                                                                                                      │
+│          # Process through 39 transformer blocks                                                     │
+│          for blk in self.blocks:                                                                     │
+│              x = blk(x, rel_pos_bias)                # Self-attention + MLP                          │
+│                                                                                                      │
+│          return x                                    # [batch, 197, 1408]                            │
+│                                                                                                      │
+│                                                                                                      │
+│ Process:                                                                                             │
+│                                                                                                      │
+│  • Add CLS token: 196 → 197 tokens                                                                   │
+│  • Add positional embeddings                                                                         │
+│  • 39 transformer layers with self-attention Output: [batch, 197, 1408] contextualized features      │
+│                                                                                                      │
+│                                   Step 4: Q-Former Cross-Attention                                   │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/models/mini_gpt4.py                                                                 │
+│  def encode_img(self, image):                                                                        │
+│      # Vision encoder                                                                                │
+│      image_embeds = self.ln_vision(self.visual_encoder(image))  # [batch, 197, 1408]                 │
+│                                                                                                      │
+│      # Q-Former cross-attention                                                                      │
+│      query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)  # [batch, 32, 768]      │
+│      query_output = self.Qformer.bert(                                                               │
+│          query_embeds=query_tokens,           # Learnable queries                                    │
+│          encoder_hidden_states=image_embeds,  # Vision features as keys/values                       │
+│          encoder_attention_mask=image_atts,   # Attention mask                                       │
+│          return_dict=True,                                                                           │
+│      )                                                                                               │
+│                                                                                                      │
+│      # Project to LLaMA dimension                                                                    │
+│      inputs_llama = self.llama_proj(query_output.last_hidden_state)  # [batch, 32, 4096]             │
+│      return inputs_llama, atts_llama                                                                 │
+│                                                                                                      │
+│                                                                                                      │
+│ Process:                                                                                             │
+│                                                                                                      │
+│  • 32 learnable query tokens attend to 197 vision patches                                            │
+│  • Cross-attention extracts relevant visual information                                              │
+│  • Linear projection: 768D → 4096D (LLaMA dimension) Output: [batch, 32, 4096] image tokens for      │
+│    LLaMA                                                                                             │
+│                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                     2. TEXT PROCESSING PIPELINE                                      │
+│                                                                                                      │
+│                                      Step 1: Text Preprocessing                                      │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/processors/blip_processors.py                                                       │
+│  class BlipCaptionProcessor:                                                                         │
+│      def pre_caption(self, caption):                                                                 │
+│          # Clean punctuation and normalize                                                           │
+│          caption = re.sub(r"([.!\"()*#:;~])", " ", caption.lower())                                  │
+│          caption = re.sub(r"\s{2,}", " ", caption)                                                   │
+│          caption = caption.rstrip("\n").strip(" ")                                                   │
+│                                                                                                      │
+│          # Truncate to max words                                                                     │
+│          caption_words = caption.split(" ")                                                          │
+│          if len(caption_words) > self.max_words:                                                     │
+│              caption = " ".join(caption_words[:self.max_words])                                      │
+│                                                                                                      │
+│          return caption                                                                              │
+│                                                                                                      │
+│                                                                                                      │
+│                                 Step 2: Prompt Template Application                                  │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/models/mini_gpt4.py                                                                 │
+│  def prompt_wrap(self, img_embeds, atts_img, prompt):                                                │
+│      # Split prompt at image placeholder                                                             │
+│      p_before, p_after = prompt.split('<ImageHere>')                                                 │
+│      # Example: "###Patient: " + "<ImageHere>" + " Describe this X-ray. ###Doctor: "                 │
+│                                                                                                      │
+│      # Tokenize and embed text segments                                                              │
+│      p_before_embeds = self.llama_model.model.embed_tokens(p_before_tokens.input_ids)                │
+│      p_after_embeds = self.llama_model.model.embed_tokens(p_after_tokens.input_ids)                  │
+│                                                                                                      │
+│      # Concatenate: [text_before] + [image_tokens] + [text_after]                                    │
+│      wrapped_img_embeds = torch.cat([p_before_embeds, img_embeds, p_after_embeds], dim=1)            │
+│      return wrapped_img_embeds, wrapped_atts_img                                                     │
+│                                                                                                      │
+│                                                                                                      │
+│                                   Step 3: Target Text Tokenization                                   │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/models/mini_gpt4.py                                                                 │
+│  def forward(self, samples):                                                                         │
+│      # Process target text                                                                           │
+│      text = [t + self.end_sym for t in samples["caption"]]  # Add "###" end symbol                   │
+│      to_regress_tokens = self.llama_tokenizer(                                                       │
+│          text,                                                                                       │
+│          return_tensors="pt",                                                                        │
+│          padding="longest",                                                                          │
+│          truncation=True,                                                                            │
+│          max_length=self.max_txt_len,                # 160 tokens max                                │
+│          add_special_tokens=False                                                                    │
+│      ).to(image.device)                                                                              │
+│                                                                                                      │
+│      # Convert to embeddings                                                                         │
+│      to_regress_embeds = self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)            │
+│                                                                                                      │
+│                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                         3. MULTIMODAL FUSION                                         │
+│                                                                                                      │
+│                                    Complete Sequence Construction                                    │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/models/mini_gpt4.py                                                                 │
+│  def forward(self, samples):                                                                         │
+│      # Get components                                                                                │
+│      img_embeds, atts_img = self.encode_img(image)           # [batch, 32, 4096]                     │
+│      img_embeds, atts_img = self.prompt_wrap(img_embeds, atts_img, prompt)                           │
+│                                                                                                      │
+│      # BOS token                                                                                     │
+│      bos = torch.ones([batch_size, 1]) * self.llama_tokenizer.bos_token_id                           │
+│      bos_embeds = self.llama_model.model.embed_tokens(bos)   # [batch, 1, 4096]                      │
+│                                                                                                      │
+│      # Target text embeddings                                                                        │
+│      to_regress_embeds = self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)            │
+│                                                                                                      │
+│      # Final sequence: [BOS] + [prompt_before] + [image_tokens] + [prompt_after] + [target_text]     │
+│      inputs_embeds = torch.cat([bos_embeds, img_embeds, to_regress_embeds], dim=1)                   │
+│      attention_mask = torch.cat([atts_bos, atts_img, to_regress_tokens.attention_mask], dim=1)       │
+│                                                                                                      │
+│                                                                                                      │
+│ Sequence Structure:                                                                                  │
+│                                                                                                      │
+│                                                                                                      │
+│  [BOS] + [###Patient: ] + [32 image tokens] + [ Describe... ###Doctor: ] + [target medical text] +   │
+│  [###]                                                                                               │
+│    1   +      9 tokens   +    32 tokens     +      10 tokens           +    variable length    +  1  │
+│                                                                                                      │
+│                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                     4. TRAINING LOSS COMPUTATION                                     │
+│                                                                                                      │
+│                                            Label Creation                                            │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/models/mini_gpt4.py                                                                 │
+│  def forward(self, samples):                                                                         │
+│      # Create labels for loss computation                                                            │
+│      targets = to_regress_tokens.input_ids.masked_fill(                                              │
+│          to_regress_tokens.input_ids == self.llama_tokenizer.pad_token_id, -100                      │
+│      )                                                                                               │
+│                                                                                                      │
+│      # Create empty targets for image and prompt tokens (set to -100 to ignore)                      │
+│      empty_targets = torch.ones([atts_img.shape[0], atts_img.shape[1]+1],                            │
+│                                dtype=torch.long).fill_(-100)                                         │
+│      targets = torch.cat([empty_targets, targets], dim=1)                                            │
+│                                                                                                      │
+│      # Forward through LLaMA with labels                                                             │
+│      outputs = self.llama_model(                                                                     │
+│          inputs_embeds=inputs_embeds,                                                                │
+│          attention_mask=attention_mask,                                                              │
+│          labels=targets,                                                                             │
+│      )                                                                                               │
+│                                                                                                      │
+│      return {"loss": outputs.loss}                                                                   │
+│                                                                                                      │
+│                                                                                                      │
+│ Loss Computation:                                                                                    │
+│                                                                                                      │
+│  • Ignored tokens (-100): BOS, prompt, image tokens                                                  │
+│  • Target tokens: Only medical text response                                                         │
+│  • Loss function: Cross-entropy on next-token prediction                                             │
+│  • Backpropagation: Only through linear projection layer                                             │
+│                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                           5. TRAINING LOOP                                           │
+│                                                                                                      │
+│                                            Training Step                                             │
+│                                                                                                      │
+│                                                                                                      │
+│  # File: xraygpt/tasks/base_task.py                                                                  │
+│  def _train_inner_loop(self, epoch, iters_per_epoch, model, data_loader, optimizer, ...):            │
+│      for i in range(iters_per_epoch):                                                                │
+│          # Get batch                                                                                 │
+│          samples = next(data_loader)                                                                 │
+│          samples = prepare_sample(samples, cuda_enabled=cuda_enabled)                                │
+│                                                                                                      │
+│          # Forward pass                                                                              │
+│          with torch.cuda.amp.autocast(enabled=use_amp):                                              │
+│              loss = self.train_step(model=model, samples=samples)                                    │
+│                                                                                                      │
+│          # Backward pass                                                                             │
+│          if use_amp:                                                                                 │
+│              scaler.scale(loss).backward()                                                           │
+│          else:                                                                                       │
+│              loss.backward()                                                                         │
+│                                                                                                      │
+│          # Update weights                                                                            │
+│          if (i + 1) % accum_grad_iters == 0:                                                         │
+│              optimizer.step()                                                                        │
+│              optimizer.zero_grad()                                                                   │
+│                                                                                                      │
+│                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                      │
+│                                       🎯 Key Training Insights                                       │
+│                                                                                                      │
+│                                        Parameter Efficiency:                                         │
+│                                                                                                      │
+│  • Total Parameters: ~8.5B (EVA-CLIP: 1.4B + Q-Former: 110M + Vicuna: 7B)                            │
+│  • Trainable Parameters: ~98K (only linear projection: 32×768→4096)                                  │
+│  • Trainable Ratio: 0.001% - Extremely parameter efficient!                                          │
+│                                                                                                      │
+│                                          Memory Efficiency:                                          │
+│                                                                                                      │
+│  • Frozen Components: Vision encoder, Q-Former, LLaMA weights                                        │
+│  • Mixed Precision: FP16 training with gradient scaling                                              │
+│  • Gradient Accumulation: Effective larger batch sizes                                               │
+│  • Only store gradients for 98K parameters                                                           │
+│                                                                                                      │
+│                                          Training Strategy:                                          │
+│                                                                                                      │
+│  • Stage 1: MIMIC pretraining (4 epochs, 5K iters/epoch)                                             │
+│  • Stage 2: OpenI fine-tuning (1 epoch, 2.5K iters)                                                  │
+│  • Focus: Vision-language alignment through linear projection                                        │
+│  • Objective: Medical conversation generation                                                        │
+│                                                                                                      │
+│                                          Data Flow Summary:                                          │
+│                                                                                                      │
+│                                                                                                      │
+│  X-ray Image [3,224,224]                                                                             │
+│      ↓ Vision Processing                                                                             │
+│  Image Tokens [32,4096]                                                                              │
+│      ↓ Multimodal Fusion                                                                             │
+│  Medical Text [seq_len,4096]                                                                         │
+│      ↓ Language Generation                                                                           │
+│  Medical Response                                                                                    │
+│                                                                                                      │
+│                                                                                                      │
+│ This implementation shows exactly how XrayGPT processes multimodal inputs during training, with real │
+│ code from the codebase and detailed explanations of each step!
