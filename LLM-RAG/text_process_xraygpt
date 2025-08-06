@@ -2,16 +2,17 @@
 │                                                                                                      │
 │                                      Step 1: Text Preprocessing                                      │
 │                                                                                                      │
+│ Location: xraygpt/processors/blip_processors.py                                                      │
 │                                                                                                      │
-│  # File: xraygpt/processors/blip_processors.py                                                       │
-│  class BlipCaptionProcessor:                                                                         │
+│                                                                                                      │
+│  class BlipCaptionProcessor(BaseProcessor):                                                          │
 │      def pre_caption(self, caption):                                                                 │
-│          # Clean punctuation and normalize                                                           │
-│          caption = re.sub(r"([.!\"()*#:;~])", " ", caption.lower())                                  │
-│          caption = re.sub(r"\s{2,}", " ", caption)                                                   │
-│          caption = caption.rstrip("\n").strip(" ")                                                   │
+│          # Clean and normalize text                                                                  │
+│          caption = re.sub(r"([.!\"()*#:;~])", " ", caption.lower())  # Remove punctuation            │
+│          caption = re.sub(r"\s{2,}", " ", caption)                   # Remove extra spaces           │
+│          caption = caption.rstrip("\n").strip(" ")                   # Remove newlines/spaces        │
 │                                                                                                      │
-│          # Truncate to max words                                                                     │
+│          # Truncate if too long                                                                      │
 │          caption_words = caption.split(" ")                                                          │
 │          if len(caption_words) > self.max_words:                                                     │
 │              caption = " ".join(caption_words[:self.max_words])                                      │
@@ -21,39 +22,225 @@
 │                                                                                                      │
 │                                 Step 2: Prompt Template Application                                  │
 │                                                                                                      │
+│ Location: xraygpt/models/mini_gpt4.py                                                                │
 │                                                                                                      │
-│  # File: xraygpt/models/mini_gpt4.py                                                                 │
+│                                                                                                      │
 │  def prompt_wrap(self, img_embeds, atts_img, prompt):                                                │
-│      # Split prompt at image placeholder                                                             │
-│      p_before, p_after = prompt.split('<ImageHere>')                                                 │
-│      # Example: "###Patient: " + "<ImageHere>" + " Describe this X-ray. ###Doctor: "                 │
+│      if prompt:                                                                                      │
+│          batch_size = img_embeds.shape[0]                                                            │
+│          # Split prompt at image placeholder                                                         │
+│          p_before, p_after = prompt.split('<ImageHere>')  # "###Patient: " + " ###Doctor: "          │
 │                                                                                                      │
-│      # Tokenize and embed text segments                                                              │
-│      p_before_embeds = self.llama_model.model.embed_tokens(p_before_tokens.input_ids)                │
-│      p_after_embeds = self.llama_model.model.embed_tokens(p_after_tokens.input_ids)                  │
+│          # Tokenize text parts                                                                       │
+│          p_before_tokens = self.llama_tokenizer(                                                     │
+│              p_before, return_tensors="pt", add_special_tokens=False).to(img_embeds.device)          │
+│          p_after_tokens = self.llama_tokenizer(                                                      │
+│              p_after, return_tensors="pt", add_special_tokens=False).to(img_embeds.device)           │
 │                                                                                                      │
-│      # Concatenate: [text_before] + [image_tokens] + [text_after]                                    │
-│      wrapped_img_embeds = torch.cat([p_before_embeds, img_embeds, p_after_embeds], dim=1)            │
-│      return wrapped_img_embeds, wrapped_atts_img                                                     │
+│          # Convert to embeddings                                                                     │
+│          p_before_embeds =                                                                           │
+│  self.llama_model.model.embed_tokens(p_before_tokens.input_ids).expand(batch_size, -1, -1)           │
+│          p_after_embeds =                                                                            │
+│  self.llama_model.model.embed_tokens(p_after_tokens.input_ids).expand(batch_size, -1, -1)            │
+│                                                                                                      │
+│          # Concatenate: [text_before] + [image_tokens] + [text_after]                                │
+│          wrapped_img_embeds = torch.cat([p_before_embeds, img_embeds, p_after_embeds], dim=1)        │
+│          wrapped_atts_img = atts_img[:, :1].expand(-1, wrapped_img_embeds.shape[1])                  │
+│                                                                                                      │
+│          return wrapped_img_embeds, wrapped_atts_img                                                 │
+│      else:                                                                                           │
+│          return img_embeds, atts_img                                                                 │
 │                                                                                                      │
 │                                                                                                      │
-│                                   Step 3: Target Text Tokenization                                   │
+│                                      Step 3: Text Tokenization                                       │
+│                                                                                                      │
+│ Location: xraygpt/models/mini_gpt4.py                                                                │
 │                                                                                                      │
 │                                                                                                      │
-│  # File: xraygpt/models/mini_gpt4.py                                                                 │
-│  def forward(self, samples):                                                                         │
-│      # Process target text                                                                           │
-│      text = [t + self.end_sym for t in samples["caption"]]  # Add "###" end symbol                   │
-│      to_regress_tokens = self.llama_tokenizer(                                                       │
-│          text,                                                                                       │
-│          return_tensors="pt",                                                                        │
-│          padding="longest",                                                                          │
-│          truncation=True,                                                                            │
-│          max_length=self.max_txt_len,                # 160 tokens max                                │
-│          add_special_tokens=False                                                                    │
-│      ).to(image.device)                                                                              │
+│  # During training/inference                                                                         │
+│  text = [t + self.end_sym for t in samples["caption"]]  # Add "###" end symbol                       │
+│                                                                                                      │
+│  to_regress_tokens = self.llama_tokenizer(                                                           │
+│      text,                                                                                           │
+│      return_tensors="pt",                                                                            │
+│      padding="longest",      # Pad to longest sequence in batch                                      │
+│      truncation=True,        # Truncate if too long                                                  │
+│      max_length=self.max_txt_len,  # Max 160 tokens                                                  │
+│      add_special_tokens=False                                                                        │
+│  ).to(image.device)                                                                                  │
+│                                                                                                      │
+│  # Convert token IDs to embeddings                                                                   │
+│  to_regress_embeds = self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)                │
+│                                                                                                      │
+│                                                                                                      │
+│ Process:                                                                                             │
+│                                                                                                      │
+│  1 Template: "###Patient: {user_query} ###Doctor: "                                                  │
+│  2 Tokenization: Text → token IDs using LLaMA tokenizer                                              │
+│  3 Embedding: Token IDs → embeddings [batch, seq_len, 4096]                                          │
+│                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                      │
+│                                         3. MULTIMODAL FUSION                                         │
+│                                                                                                      │
+│                                Step 1: Conversation Context Building                                 │
+│                                                                                                      │
+│ Location: xraygpt/conversation/conversation.py                                                       │
+│                                                                                                      │
+│                                                                                                      │
+│  def get_context_emb(self, conv, img_list):                                                          │
+│      prompt = conv.get_prompt()  # Get full conversation prompt                                      │
+│      prompt_segs = prompt.split('<ImageHere>')  # Split at image placeholders                        │
+│                                                                                                      │
+│      # Tokenize text segments                                                                        │
+│      seg_tokens = [                                                                                  │
+│          self.model.llama_tokenizer(                                                                 │
+│              seg, return_tensors="pt", add_special_tokens=i == 0).to(self.device).input_ids          │
+│          for i, seg in enumerate(prompt_segs)                                                        │
+│      ]                                                                                               │
 │                                                                                                      │
 │      # Convert to embeddings                                                                         │
+│      seg_embs = [self.model.llama_model.model.embed_tokens(seg_t) for seg_t in seg_tokens]           │
+│                                                                                                      │
+│      # Interleave text and image embeddings                                                          │
+│      mixed_embs = [emb for pair in zip(seg_embs[:-1], img_list) for emb in pair] + [seg_embs[-1]]    │
+│      mixed_embs = torch.cat(mixed_embs, dim=1)  # Final multimodal sequence                          │
+│                                                                                                      │
+│      return mixed_embs                                                                               │
+│                                                                                                      │
+│                                                                                                      │
+│                              Step 2: Final Input Sequence Construction                               │
+│                                                                                                      │
+│ Location: xraygpt/models/mini_gpt4.py                                                                │
+│                                                                                                      │
+│                                                                                                      │
+│  def forward(self, samples):                                                                         │
+│      # Get image embeddings                                                                          │
+│      img_embeds, atts_img = self.encode_img(image)  # [batch, 32, 4096]                              │
+│                                                                                                      │
+│      # Apply prompt template                                                                         │
+│      if self.prompt_list:                                                                            │
+│          prompt = random.choice(self.prompt_list)  # Random medical prompt                           │
+│          img_embeds, atts_img = self.prompt_wrap(img_embeds, atts_img, prompt)                       │
+│                                                                                                      │
+│      # Process target text                                                                           │
+│      text = [t + self.end_sym for t in samples["caption"]]                                           │
+│      to_regress_tokens = self.llama_tokenizer(text, ...)                                             │
 │      to_regress_embeds = self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)            │
 │                                                                                                      │
+│      # Build final sequence: [BOS] + [prompt_before] + [image_tokens] + [prompt_after] +             │
+│  [target_text]                                                                                       │
+│      batch_size = img_embeds.shape[0]                                                                │
+│      bos = torch.ones([batch_size, 1], dtype=torch.long, device=device) *                            │
+│  self.llama_tokenizer.bos_token_id                                                                   │
+│      bos_embeds = self.llama_model.model.embed_tokens(bos)                                           │
 │                                                                                                      │
+│      inputs_embeds = torch.cat([bos_embeds, img_embeds, to_regress_embeds], dim=1)                   │
+│      attention_mask = torch.cat([atts_bos, atts_img, to_regress_tokens.attention_mask], dim=1)       │
+│                                                                                                      │
+│      return inputs_embeds, attention_mask                                                            │
+│                                                                                                      │
+│                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                      │
+│                                      4. LLM GENERATION PROCESS                                       │
+│                                                                                                      │
+│                                  Step 1: Forward Pass Through LLaMA                                  │
+│                                                                                                      │
+│ Location: xraygpt/models/mini_gpt4.py                                                                │
+│                                                                                                      │
+│                                                                                                      │
+│  def forward(self, samples):                                                                         │
+│      # ... (multimodal fusion above)                                                                 │
+│                                                                                                      │
+│      with self.maybe_autocast():                                                                     │
+│          outputs = self.llama_model(                                                                 │
+│              inputs_embeds=inputs_embeds,    # [batch, total_seq_len, 4096]                          │
+│              attention_mask=attention_mask,  # [batch, total_seq_len]                                │
+│              return_dict=True,                                                                       │
+│              labels=targets,                 # For training loss                                     │
+│          )                                                                                           │
+│      loss = outputs.loss                                                                             │
+│      return {"loss": loss}                                                                           │
+│                                                                                                      │
+│                                                                                                      │
+│                                     Step 2: Inference Generation                                     │
+│                                                                                                      │
+│ Location: xraygpt/conversation/conversation.py                                                       │
+│                                                                                                      │
+│                                                                                                      │
+│  def answer(self, conv, img_list, max_new_tokens=300, num_beams=1, temperature=1.0, ...):            │
+│      conv.append_message(conv.roles[1], None)  # Add doctor role                                     │
+│      embs = self.get_context_emb(conv, img_list)  # Get multimodal context                           │
+│                                                                                                      │
+│      # Generate response                                                                             │
+│      outputs = self.model.llama_model.generate(                                                      │
+│          inputs_embeds=embs,                                                                         │
+│          max_new_tokens=max_new_tokens,                                                              │
+│          stopping_criteria=self.stopping_criteria,  # Stop at "###"                                  │
+│          num_beams=num_beams,                                                                        │
+│          do_sample=True,                                                                             │
+│          temperature=temperature,                                                                    │
+│          top_p=0.9,                                                                                  │
+│      )                                                                                               │
+│                                                                                                      │
+│      # Decode and clean output                                                                       │
+│      output_token = outputs[0]                                                                       │
+│      output_text = self.model.llama_tokenizer.decode(output_token, add_special_tokens=False)         │
+│      output_text = output_text.split('###')[0]  # Remove stop token                                  │
+│      output_text = output_text.split('Doctor:')[-1].strip()  # Extract doctor response               │
+│                                                                                                      │
+│      return output_text                                                                              │
+│                                                                                                      │
+│                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                      │
+│                                       5. COMPLETE EXAMPLE FLOW                                       │
+│                                                                                                      │
+│                                                                                                      │
+│  # Input Example                                                                                     │
+│  image = PIL.Image.open("chest_xray.jpg")  # X-ray image                                             │
+│  user_query = "What do you see in this chest X-ray?"                                                 │
+│                                                                                                      │
+│  # Step 1: Image Processing                                                                          │
+│  processed_image = vis_processor(image)  # [3, 224, 224]                                             │
+│  image_patches = patch_embed(processed_image)  # [196, 768] patches                                  │
+│  vision_features = vision_transformer(image_patches)  # [197, 1408]                                  │
+│  image_tokens = qformer_cross_attention(vision_features)  # [32, 4096]                               │
+│                                                                                                      │
+│  # Step 2: Text Processing                                                                           │
+│  prompt = "###Patient: What do you see in this chest X-ray? <ImageHere> ###Doctor: "                 │
+│  prompt_tokens = llama_tokenizer(prompt)  # Token IDs                                                │
+│  prompt_embeds = embed_tokens(prompt_tokens)  # [seq_len, 4096]                                      │
+│                                                                                                      │
+│  # Step 3: Multimodal Fusion                                                                         │
+│  multimodal_sequence = concat([                                                                      │
+│      bos_embed,      # [1, 4096]                                                                     │
+│      prompt_before,  # [n, 4096] "###Patient: What do you see in this chest X-ray?"                  │
+│      image_tokens,   # [32, 4096] Visual information                                                 │
+│      prompt_after    # [m, 4096] "###Doctor: "                                                       │
+│  ])  # Final: [1+n+32+m, 4096]                                                                       │
+│                                                                                                      │
+│  # Step 4: LLM Generation                                                                            │
+│  response = llama_model.generate(                                                                    │
+│      inputs_embeds=multimodal_sequence,                                                              │
+│      max_new_tokens=300,                                                                             │
+│      temperature=1.0                                                                                 │
+│  )                                                                                                   │
+│                                                                                                      │
+│  # Output: "The chest X-ray shows clear lung fields with no evidence of consolidation,               │
+│  #          pleural effusion, or pneumothorax. The cardiac silhouette appears normal..."             │
+│                                                                                                      │
+│                                                                                                      │
+│ This comprehensive pipeline ensures that both visual and textual information are properly encoded,   │
+│ aligned, and fused before being processed by the language model to generate medically relevant       │
+│ responses.                                                                                           │
+│                                                                                                      │
+│ What specific aspect of this multimodal processing would you like me to explore further? I can dive  │
+│ deeper into:                                                                                         │
+│                                                                                                      │
+│  1 The Q-Former cross-attention mechanism details                                                    │
+│  2 The vision transformer patch processing specifics                                                 │
+│  3 The prompt engineering and conversation management                                                │
+│  4 The training loss computation and optimization                                                    │
+│  5 The generation strategies and stopping criteria   
