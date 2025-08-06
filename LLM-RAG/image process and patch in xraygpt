@@ -93,3 +93,42 @@
 │  3 Positional Encoding: Add learned position embeddings                                              │
 │  4 Transformer Blocks: 39 layers of self-attention + MLP                                             │
 │  5 Output: [batch, 197, 1408] contextualized patch representations 
+
+ Step 4: Q-Former Cross-Attention                                   │
+│                                                                                                      │
+│ Location: xraygpt/models/mini_gpt4.py                                                                │
+│                                                                                                      │
+│                                                                                                      │
+│  def encode_img(self, image):                                                                        │
+│      device = image.device                                                                           │
+│                                                                                                      │
+│      # Step 1: Get vision features from EVA-CLIP                                                     │
+│      with self.maybe_autocast():                                                                     │
+│          image_embeds = self.ln_vision(self.visual_encoder(image)).to(device)  # [batch, 197, 1408]  │
+│          image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(device)  # [batch,   │
+│  197]                                                                                                │
+│                                                                                                      │
+│          # Step 2: Q-Former cross-attention                                                          │
+│          query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)  # [batch, 32, 768]  │
+│          query_output = self.Qformer.bert(                                                           │
+│              query_embeds=query_tokens,           # Learnable queries [batch, 32, 768]               │
+│              encoder_hidden_states=image_embeds,  # Vision features [batch, 197, 1408]               │
+│              encoder_attention_mask=image_atts,   # Attention mask [batch, 197]                      │
+│              return_dict=True,                                                                       │
+│          )                                                                                           │
+│                                                                                                      │
+│          # Step 3: Project to LLM space                                                              │
+│          inputs_llama = self.llama_proj(query_output.last_hidden_state)  # [batch, 32, 4096]         │
+│          atts_llama = torch.ones(inputs_llama.size()[:-1], dtype=torch.long).to(image.device)        │
+│                                                                                                      │
+│      return inputs_llama, atts_llama  # [batch, 32, 4096], [batch, 32]                               │
+│                                                                                                      │
+│                                                                                                      │
+│ Process:                                                                                             │
+│                                                                                                      │
+│  1 Layer Norm: Apply layer normalization to vision features                                          │
+│  2 Query Tokens: 32 learnable query embeddings [batch, 32, 768]                                      │
+│  3 Cross-Attention: Queries attend to all 197 vision patches                                         │
+│  4 Linear Projection: [batch, 32, 768] → [batch, 32, 4096] (LLaMA hidden size)                       │
+│  5 Output: 32 vision-language aligned tokens ready for LLM                                           │
+│                                                            
