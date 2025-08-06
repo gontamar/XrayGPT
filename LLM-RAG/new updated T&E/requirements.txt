@@ -1,9 +1,0 @@
-# Requirements for BERT Tokenizer with Embeddings and Input Processing
-transformers>=4.20.0
-torch>=1.12.0
-PyYAML>=6.0
-numpy>=1.21.0
-
-# Dependencies for input processing
-unicodedata2>=14.0.0   # Enhanced Unicode normalization (optional, fallback to built-in unicodedata)
-regex>=2022.1.18       # Enhanced regex support (optional, fallback to built-in re)
