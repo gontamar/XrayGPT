@@ -1,0 +1,288 @@
+ Perfect! Now I have all the pieces to provide you with the complete file connection trace for XrayGPT training flow. │
+│ Let me create a comprehensive diagram showing how files connect through function calls and imports.                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│                           🔗 Complete XrayGPT Training Flow: File-by-File Connection Trace                           │
+│                                                                                                                      │
+│                                           📍 STEP 1: Entry Point & Imports                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 train.py                                                                                                         │
+│  ├── Line 15: import xraygpt.tasks as tasks                                                                          │
+│  ├── Line 16: from xraygpt.common.config import Config                                                               │
+│  ├── Line 17: from xraygpt.common.dist_utils import get_rank, init_distributed_mode                                  │
+│  ├── Line 23: from xraygpt.common.registry import registry                                                           │
+│  ├── Line 27-31: Import ALL modules for registration:                                                                │
+│  │   ├── from xraygpt.datasets.builders import *                                                                     │
+│  │   ├── from xraygpt.models import *                                                                                │
+│  │   ├── from xraygpt.processors import *                                                                            │
+│  │   ├── from xraygpt.runners import *                                                                               │
+│  │   └── from xraygpt.tasks import *                                                                                 │
+│  │                                                                                                                   │
+│  └── Line 91: task = tasks.setup_task(cfg)                                                                           │
+│      └── 🔗 CALLS: xraygpt/tasks/__init__.py::setup_task()                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                📍 STEP 2: Task Setup                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/__init__.py                                                                                        │
+│  ├── Line 7: from xraygpt.common.registry import registry                                                            │
+│  ├── Line 8: from xraygpt.tasks.base_task import BaseTask                                                            │
+│  ├── Line 9: from xraygpt.tasks.image_text_pretrain import ImageTextPretrainTask                                     │
+│  │                                                                                                                   │
+│  └── Line 16: task = registry.get_task_class(task_name).setup_task(cfg=cfg)                                          │
+│      └── 🔗 CALLS: xraygpt/common/registry.py::get_task_class()                                                      │
+│          └── 🔗 RETURNS: ImageTextPretrainTask (registered in image_text_pretrain.py)                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                        📍 STEP 3: Task Registration Discovery                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/image_text_pretrain.py                                                                             │
+│  ├── Line 7: from xraygpt.common.registry import registry                                                            │
+│  ├── Line 8: from xraygpt.tasks.base_task import BaseTask                                                            │
+│  │                                                                                                                   │
+│  └── Line 12: @registry.register_task("image_text_pretrain")                                                         │
+│      └── 🔗 REGISTERS: ImageTextPretrainTask class in registry                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                             📍 STEP 4: Dataset Building                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 train.py                                                                                                         │
+│  └── Line 92: datasets = task.build_datasets(cfg)                                                                    │
+│      └── 🔗 CALLS: xraygpt/tasks/base_task.py::build_datasets()                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│  ├── Line 14: from xraygpt.common.registry import registry                                                           │
+│  ├── Line 15: from xraygpt.datasets.data_utils import prepare_sample                                                 │
+│  │                                                                                                                   │
+│  └── Line 57: builder = registry.get_builder_class(name)(dataset_config)                                             │
+│      └── 🔗 CALLS: xraygpt/common/registry.py::get_builder_class()                                                   │
+│          └── 🔗 RETURNS: MIMICBuilder or OpenIBuilder                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                  📍 STEP 5: Dataset Builder Registration Discovery                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/datasets/builders/image_text_pair_builder.py                                                             │
+│  ├── Line 4: from xraygpt.common.registry import registry                                                            │
+│  ├── Line 5: from xraygpt.datasets.builders.base_dataset_builder import BaseDatasetBuilder                           │
+│  ├── Line 6: from xraygpt.datasets.datasets.openi_dataset import OpenIDataset                                        │
+│  ├── Line 7: from xraygpt.datasets.datasets.mimic_dataset import MIMICDataset                                        │
+│  │                                                                                                                   │
+│  ├── Line 11: @registry.register_builder("mimic")                                                                    │
+│  │   └── 🔗 REGISTERS: MIMICBuilder class                                                                            │
+│  └── Line 48: @registry.register_builder("openi")                                                                    │
+│      └── 🔗 REGISTERS: OpenIBuilder class                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                             📍 STEP 6: Dataset Creation                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/datasets/builders/image_text_pair_builder.py                                                             │
+│  └── Line 37: datasets['train'] = dataset_cls(...)                                                                   │
+│      └── 🔗 CALLS: xraygpt/datasets/datasets/mimic_dataset.py::MIMICDataset.__init__()                               │
+│                                                                                                                      │
+│  📁 xraygpt/datasets/datasets/mimic_dataset.py                                                                       │
+│  ├── Line 3: from xraygpt.datasets.datasets.base_dataset import BaseDataset                                          │
+│  ├── Line 4: from xraygpt.datasets.datasets.caption_datasets import CaptionDataset                                   │
+│  │                                                                                                                   │
+│  └── Line 28: class MIMICDataset(CaptionDataset)                                                                     │
+│      └── Line 30: def __getitem__(self, index)                                                                       │
+│          └── 🔗 CALLED BY: DataLoader during training                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                              📍 STEP 7: Model Building                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 train.py                                                                                                         │
+│  └── Line 93: model = task.build_model(cfg)                                                                          │
+│      └── 🔗 CALLS: xraygpt/tasks/base_task.py::build_model()                                                         │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│  └── Line 33: model_cls = registry.get_model_class(model_config.arch)                                                │
+│      └── 🔗 CALLS: xraygpt/common/registry.py::get_model_class()                                                     │
+│          └── 🔗 RETURNS: MiniGPT4 class                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                       📍 STEP 8: Model Registration Discovery                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/models/mini_gpt4.py                                                                                      │
+│  ├── Line 7: from xraygpt.common.registry import registry                                                            │
+│  ├── Line 8: from xraygpt.models.blip2 import Blip2Base, disabled_train                                              │
+│  ├── Line 9: from xraygpt.models.modeling_llama import LlamaForCausalLM                                              │
+│  ├── Line 10: from transformers import LlamaTokenizer                                                                │
+│  │                                                                                                                   │
+│  └── Line 37: @registry.register_model("mini_gpt4")                                                                  │
+│      └── 🔗 REGISTERS: MiniGPT4 class in registry                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                              📍 STEP 9: Runner Creation                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 train.py                                                                                                         │
+│  ├── Line 68: runner_cls = registry.get_runner_class(cfg.run_cfg.get("runner", "runner_base"))                       │
+│  │   └── 🔗 CALLS: xraygpt/common/registry.py::get_runner_class()                                                    │
+│  │       └── 🔗 RETURNS: RunnerBase class                                                                            │
+│  │                                                                                                                   │
+│  └── Line 95-97: runner = get_runner_class(cfg)(...)                                                                 │
+│      └── 🔗 CALLS: xraygpt/runners/runner_base.py::RunnerBase.__init__()                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                      📍 STEP 10: Runner Registration Discovery                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/runners/runner_base.py                                                                                   │
+│  ├── Line 15: from xraygpt.common.registry import registry                                                           │
+│  │                                                                                                                   │
+│  └── Line 37: @registry.register_runner("runner_base")                                                               │
+│      └── 🔗 REGISTERS: RunnerBase class in registry                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                           📍 STEP 11: Training Loop Start                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 train.py                                                                                                         │
+│  └── Line 98: runner.train()                                                                                         │
+│      └── 🔗 CALLS: xraygpt/runners/runner_base.py::train()                                                           │
+│                                                                                                                      │
+│  📁 xraygpt/runners/runner_base.py                                                                                   │
+│  └── Line 377: train_stats = self.train_epoch(cur_epoch)                                                             │
+│      └── 🔗 CALLS: xraygpt/runners/runner_base.py::train_epoch()                                                     │
+│          └── Line 446: return self.task.train_epoch(...)                                                             │
+│              └── 🔗 CALLS: xraygpt/tasks/base_task.py::train_epoch()                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                           📍 STEP 12: Inner Training Loop                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│  ├── Line 119: return self._train_inner_loop(...)                                                                    │
+│  │   └── 🔗 CALLS: xraygpt/tasks/base_task.py::_train_inner_loop()                                                   │
+│  │                                                                                                                   │
+│  └── Line 263: samples = next(data_loader)                                                                           │
+│      └── 🔗 CALLS: xraygpt/datasets/datasets/mimic_dataset.py::__getitem__()                                         │
+│          └── Line 39: image = self.vis_processor(image)                                                              │
+│              └── 🔗 CALLS: xraygpt/processors/blip_processors.py::Blip2ImageTrainProcessor.__call__()                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                             📍 STEP 13: Data Preparation                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│  └── Line 265: samples = prepare_sample(samples, cuda_enabled=cuda_enabled)                                          │
+│      └── 🔗 CALLS: xraygpt/datasets/data_utils.py::prepare_sample()                                                  │
+│          └── Line 91: samples = move_to_cuda(samples)                                                                │
+│              └── 🔗 CALLS: xraygpt/datasets/data_utils.py::move_to_cuda()                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                               📍 STEP 14: Forward Pass                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│  └── Line 277: loss = self.train_step(model=model, samples=samples)                                                  │
+│      └── 🔗 CALLS: xraygpt/tasks/base_task.py::train_step()                                                          │
+│          └── Line 69: loss = model(samples)["loss"]                                                                  │
+│              └── 🔗 CALLS: xraygpt/models/mini_gpt4.py::forward()                                                    │
+│                                                                                                                      │
+│  📁 xraygpt/models/mini_gpt4.py                                                                                      │
+│  ├── Line 192: img_embeds, atts_img = self.encode_img(image)                                                         │
+│  │   └── 🔗 CALLS: xraygpt/models/mini_gpt4.py::encode_img()                                                         │
+│  │       ├── Line 159: image_embeds = self.ln_vision(self.visual_encoder(image))                                     │
+│  │       ├── Line 163-168: query_output = self.Qformer.bert(...)                                                     │
+│  │       └── Line 170: inputs_llama = self.llama_proj(query_output.last_hidden_state)                                │
+│  │                                                                                                                   │
+│  ├── Line 198: prompt = random.choice(self.prompt_list)                                                              │
+│  │   └── 🔗 USES: prompts/alignment.txt (loaded in __init__)                                                         │
+│  │                                                                                                                   │
+│  ├── Line 205: img_embeds, atts_img = self.prompt_wrap(img_embeds, atts_img, prompt)                                 │
+│  │   └── 🔗 CALLS: xraygpt/models/mini_gpt4.py::prompt_wrap()                                                        │
+│  │                                                                                                                   │
+│  ├── Line 211-218: to_regress_tokens = self.llama_tokenizer(...)                                                     │
+│  │   └── 🔗 CALLS: LlamaTokenizer.from_pretrained() (HuggingFace)                                                    │
+│  │                                                                                                                   │
+│  └── Line 242-247: outputs = self.llama_model(...)                                                                   │
+│      └── 🔗 CALLS: LlamaForCausalLM.forward() (HuggingFace)                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                      📍 STEP 15: Registry System (Central Hub)                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/common/registry.py                                                                                       │
+│  ├── Line 232: def get_builder_class(cls, name)                                                                      │
+│  ├── Line 235: def get_model_class(cls, name)                                                                        │
+│  ├── Line 239: def get_task_class(cls, name)                                                                         │
+│  ├── Line 252: def get_runner_class(cls, name)                                                                       │
+│  │                                                                                                                   │
+│  └── Line 328: registry = Registry()                                                                                 │
+│      └── 🔗 USED BY: All modules for registration/lookup                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                         🔄 Complete Data Flow Through Files                                          │
+│                                                                                                                      │
+│                                                 Configuration Flow:                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  train_configs/xraygpt_mimic_pretrain.yaml                                                                           │
+│      ↓ [Config.parse()]                                                                                              │
+│  xraygpt/common/config.py                                                                                            │
+│      ↓ [cfg object]                                                                                                  │
+│  train.py::main()                                                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                  Registration Flow:                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  train.py imports → All __init__.py files → Individual modules with @registry decorators                             │
+│      ↓                                                                                                               │
+│  xraygpt/common/registry.py (Central registry)                                                                       │
+│      ↓                                                                                                               │
+│  train.py::main() → registry.get_*_class() calls                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                    Dataset Flow:                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  xraygpt/datasets/builders/image_text_pair_builder.py::MIMICBuilder                                                  │
+│      ↓ [build_datasets()]                                                                                            │
+│  xraygpt/datasets/datasets/mimic_dataset.py::MIMICDataset                                                            │
+│      ↓ [__getitem__()]                                                                                               │
+│  xraygpt/processors/blip_processors.py::Blip2ImageTrainProcessor                                                     │
+│      ↓ [processed samples]                                                                                           │
+│  xraygpt/datasets/data_utils.py::prepare_sample()                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                     Model Flow:                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│  xraygpt/models/mini_gpt4.py::MiniGPT4                                                                               │
+│      ↓ [encode_img()]                                                                                                │
+│  xraygpt/models/eva_vit.py (Visual Encoder)                                                                          │
+│      ↓ [visual features]                                                                                             │
+│  xraygpt/models/Qformer.py (Q-Former)                                                                                │
+│      ↓ [query features]                                                                                              │
+│  xraygpt/models/modeling_llama.py (LLaMA)                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                    Training Flow:                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│  train.py::main()                                                                                                    │
+│      ↓ [runner.train()]                                                                                              │
+│  xraygpt/runners/runner_base.py::RunnerBase.train()                                                                  │
+│      ↓ [train_epoch()]                                                                                               │
+│  xraygpt/tasks/base_task.py::BaseTask._train_inner_loop()                                                            │
+│      ↓ [train_step()]                                                                                                │
+│  xraygpt/models/mini_gpt4.py::MiniGPT4.forward()                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ This complete trace shows every file connection, function call, and data flow throughout the entire XrayGPT training │
+│ process, from the initial script execution to the final loss computation.                                            │
+│                                                                                                                      │
+│ Would you like me to dive deeper into any specific file connection or explain how a particular component integrates  │
+│ with the rest of the system?             
