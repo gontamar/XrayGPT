@@ -1,0 +1,419 @@
+│ Now I have a comprehensive understanding of the XrayGPT training flow. Let me provide you with a complete            │
+│ line-by-line trace of the training code from start to tokenization and embeddings:                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                       🔍 Complete XrayGPT Training Flow Trace                                        │
+│                                                                                                                      │
+│                                      📍 STEP 1: Training Entry Point (train.py)                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 73-102: main() function                                                                                      │
+│  def main():                                                                                                         │
+│      job_id = now()                                    # Line 78: Generate timestamp ID                              │
+│      cfg = Config(parse_args())                        # Line 80: Parse config from YAML                             │
+│      init_distributed_mode(cfg.run_cfg)               # Line 82: Setup distributed training                          │
+│      setup_seeds(cfg)                                 # Line 84: Set random seeds                                    │
+│      setup_logger()                                   # Line 87: Initialize logging                                  │
+│                                                                                                                      │
+│      task = tasks.setup_task(cfg)                     # Line 91: Create task instance                                │
+│      datasets = task.build_datasets(cfg)              # Line 92: Build datasets                                      │
+│      model = task.build_model(cfg)                    # Line 93: Build model                                         │
+│                                                                                                                      │
+│      runner = get_runner_class(cfg)(                  # Line 95-97: Create runner                                    │
+│          cfg=cfg, job_id=job_id, task=task, model=model, datasets=datasets                                           │
+│      )                                                                                                               │
+│      runner.train()                                   # Line 98: Start training                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                  📍 STEP 2: Task Setup (xraygpt/tasks/__init__.py)                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 12-19: setup_task() function                                                                                 │
+│  def setup_task(cfg):                                                                                                │
+│      assert "task" in cfg.run_cfg, "Task name must be provided."                                                     │
+│      task_name = cfg.run_cfg.task                     # Gets "image_text_pretrain"                                   │
+│      task = registry.get_task_class(task_name).setup_task(cfg=cfg)  # Creates ImageTextPretrainTask                  │
+│      return task                                                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│                               📍 STEP 3: Dataset Building (xraygpt/tasks/base_task.py)                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 36-66: build_datasets() function                                                                             │
+│  def build_datasets(self, cfg):                                                                                      │
+│      datasets = dict()                                                                                               │
+│      datasets_config = cfg.datasets_cfg              # Gets dataset configs (mimic/openi)                            │
+│                                                                                                                      │
+│      for name in datasets_config:                     # Iterate through datasets                                     │
+│          dataset_config = datasets_config[name]                                                                      │
+│          builder = registry.get_builder_class(name)(dataset_config)  # Get MIMICBuilder/OpenIBuilder                 │
+│          dataset = builder.build_datasets()           # Build actual dataset                                         │
+│                                                                                                                      │
+│          dataset['train'].name = name                                                                                │
+│          datasets[name] = dataset                                                                                    │
+│                                                                                                                      │
+│      return datasets                                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│                  📍 STEP 4: Dataset Builder (xraygpt/datasets/builders/image_text_pair_builder.py)                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 22-44: MIMICBuilder.build_datasets()                                                                         │
+│  def build_datasets(self):                                                                                           │
+│      logging.info("Building datasets...")                                                                            │
+│      self.build_processors()                          # Build image/text processors                                  │
+│                                                                                                                      │
+│      build_info = self.config.build_info                                                                             │
+│      storage_path = build_info.storage                # Path to dataset                                              │
+│                                                                                                                      │
+│      datasets = dict()                                                                                               │
+│      dataset_cls = self.train_dataset_cls             # MIMICDataset class                                           │
+│      datasets['train'] = dataset_cls(                                                                                │
+│          vis_processor=self.vis_processors["train"],   # Image processor                                             │
+│          text_processor=self.text_processors["train"], # Text processor                                              │
+│          ann_paths=[os.path.join(storage_path, 'filter_cap.json')],  # Annotations                                   │
+│          vis_root=os.path.join(storage_path, 'image'), # Image directory                                             │
+│      )                                                                                                               │
+│                                                                                                                      │
+│      return datasets                                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                📍 STEP 5: Model Building (xraygpt/tasks/base_task.py)                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 30-34: build_model() function                                                                                │
+│  def build_model(self, cfg):                                                                                         │
+│      model_config = cfg.model_cfg                                                                                    │
+│      model_cls = registry.get_model_class(model_config.arch)  # Gets MiniGPT4 class                                  │
+│      return model_cls.from_config(model_config)               # Creates MiniGPT4 instance                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│                        📍 STEP 6: MiniGPT4 Model Initialization (xraygpt/models/mini_gpt4.py)                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 46-143: MiniGPT4.__init__()                                                                                  │
+│  def __init__(self, vit_model="eva_clip_g", q_former_model="...", img_size=224, ...):                                │
+│      super().__init__()                                                                                              │
+│                                                                                                                      │
+│      self.tokenizer = self.init_tokenizer()           # Line 66: BERT tokenizer                                      │
+│                                                                                                                      │
+│      # Line 69-83: Initialize Vision Encoder (EVA-CLIP)                                                              │
+│      print('Loading VIT')                                                                                            │
+│      self.visual_encoder, self.ln_vision = self.init_vision_encoder(                                                 │
+│          vit_model, img_size, drop_path_rate, use_grad_checkpoint, vit_precision                                     │
+│      )                                                                                                               │
+│      if freeze_vit:                                                                                                  │
+│          for name, param in self.visual_encoder.named_parameters():                                                  │
+│              param.requires_grad = False              # Freeze vision encoder                                        │
+│                                                                                                                      │
+│      # Line 85-104: Initialize Q-Former                                                                              │
+│      print('Loading Q-Former')                                                                                       │
+│      self.Qformer, self.query_tokens = self.init_Qformer(                                                            │
+│          num_query_token, self.visual_encoder.num_features                                                           │
+│      )                                                                                                               │
+│      if freeze_qformer:                                                                                              │
+│          for name, param in self.Qformer.named_parameters():                                                         │
+│              param.requires_grad = False              # Freeze Q-Former                                              │
+│                                                                                                                      │
+│      # Line 106-124: Initialize LLaMA                                                                                │
+│      print('Loading LLAMA')                                                                                          │
+│      self.llama_tokenizer = LlamaTokenizer.from_pretrained(llama_model, use_fast=False)                              │
+│      self.llama_model = LlamaForCausalLM.from_pretrained(llama_model, torch_dtype=torch.float16)                     │
+│      for name, param in self.llama_model.named_parameters():                                                         │
+│          param.requires_grad = False                  # Freeze LLaMA                                                 │
+│                                                                                                                      │
+│      # Line 126-128: Trainable projection layer                                                                      │
+│      self.llama_proj = nn.Linear(                                                                                    │
+│          self.Qformer.config.hidden_size, self.llama_model.config.hidden_size                                        │
+│      )                                                                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│                           📍 STEP 7: Runner Training Loop (xraygpt/runners/runner_base.py)                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 362-420: train() function                                                                                    │
+│  def train(self):                                                                                                    │
+│      for cur_epoch in range(self.start_epoch, self.max_epoch):                                                       │
+│          if not self.evaluate_only:                                                                                  │
+│              train_stats = self.train_epoch(cur_epoch)    # Line 377: Train one epoch                                │
+│                                                                                                                      │
+│  # Line 446-460: train_epoch() function                                                                              │
+│  def train_epoch(self, epoch):                                                                                       │
+│      self.model.train()                               # Set model to training mode                                   │
+│                                                                                                                      │
+│      return self.task.train_epoch(                    # Delegate to task                                             │
+│          epoch=epoch,                                                                                                │
+│          model=self.model,                                                                                           │
+│          data_loader=self.train_loader,                                                                              │
+│          optimizer=self.optimizer,                                                                                   │
+│          scaler=self.scaler,                                                                                         │
+│          lr_scheduler=self.lr_scheduler,                                                                             │
+│          cuda_enabled=self.cuda_enabled,                                                                             │
+│          log_freq=self.log_freq,                                                                                     │
+│          accum_grad_iters=self.accum_grad_iters,                                                                     │
+│      )                                                                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│                              📍 STEP 8: Task Training Loop (xraygpt/tasks/base_task.py)                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 213-304: _train_inner_loop() function                                                                        │
+│  def _train_inner_loop(self, epoch, iters_per_epoch, model, data_loader, optimizer, ...):                            │
+│      data_loader = iter(data_loader)                  # Convert to iterator                                          │
+│                                                                                                                      │
+│      for i in metric_logger.log_every(range(iters_per_epoch), log_freq, header):                                     │
+│          samples = next(data_loader)                  # Line 263: Get next batch                                     │
+│                                                                                                                      │
+│          samples = prepare_sample(samples, cuda_enabled=cuda_enabled)  # Line 265: Move to GPU                       │
+│                                                                                                                      │
+│          lr_scheduler.step(cur_epoch=inner_epoch, cur_step=i)  # Line 274: Update LR                                 │
+│                                                                                                                      │
+│          with torch.cuda.amp.autocast(enabled=use_amp):                                                              │
+│              loss = self.train_step(model=model, samples=samples)  # Line 277: Forward pass                          │
+│                                                                                                                      │
+│          # Line 280-292: Backward pass and optimization                                                              │
+│          if use_amp:                                                                                                 │
+│              scaler.scale(loss).backward()                                                                           │
+│          else:                                                                                                       │
+│              loss.backward()                                                                                         │
+│                                                                                                                      │
+│          if (i + 1) % accum_grad_iters == 0:                                                                         │
+│              if use_amp:                                                                                             │
+│                  scaler.step(optimizer)                                                                              │
+│                  scaler.update()                                                                                     │
+│              else:                                                                                                   │
+│                  optimizer.step()                                                                                    │
+│              optimizer.zero_grad()                                                                                   │
+│                                                                                                                      │
+│  # Line 68-70: train_step() function                                                                                 │
+│  def train_step(self, model, samples):                                                                               │
+│      loss = model(samples)["loss"]                    # Forward pass through model                                   │
+│      return loss                                                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                        📍 STEP 9: Data Loading and Processing                                        │
+│                                                                                                                      │
+│                           Dataset __getitem__ (xraygpt/datasets/datasets/mimic_dataset.py)                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 30-46: MIMICDataset.__getitem__()                                                                            │
+│  def __getitem__(self, index):                                                                                       │
+│      ann = self.annotation[index]                     # Get annotation                                               │
+│                                                                                                                      │
+│      img_file = '{}.jpg'.format(ann["image_id"])      # Line 35: Construct image filename                            │
+│      image_path = os.path.join(self.vis_root, img_file)  # Line 36: Full image path                                  │
+│      image = Image.open(image_path).convert("RGB")    # Line 37: Load image as PIL                                   │
+│                                                                                                                      │
+│      image = self.vis_processor(image)                # Line 39: Process image                                       │
+│      caption = ann['caption']                         # Line 40: Get caption text                                    │
+│                                                                                                                      │
+│      return {                                                                                                        │
+│          "image": image,                              # Processed image tensor                                       │
+│          "caption": caption,                          # Raw caption text                                             │
+│          "image_id": self.img_ids[ann["image_id"]],   # Image ID                                                     │
+│      }                                                                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│                               Image Processing (xraygpt/processors/blip_processors.py)                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 70-88: Blip2ImageTrainProcessor.__call__()                                                                   │
+│  def __call__(self, item):                                                                                           │
+│      return self.transform(item)                      # Apply transforms                                             │
+│                                                                                                                      │
+│  # Line 75-85: Transform pipeline                                                                                    │
+│  self.transform = transforms.Compose([                                                                               │
+│      transforms.RandomResizedCrop(                    # Random crop and resize                                       │
+│          image_size,                                  # 224x224                                                      │
+│          scale=(min_scale, max_scale),                # Scale range                                                  │
+│          interpolation=InterpolationMode.BICUBIC,                                                                    │
+│      ),                                                                                                              │
+│      transforms.ToTensor(),                           # Convert to tensor [0,1]                                      │
+│      self.normalize,                                  # Normalize with ImageNet stats                                │
+│  ])                                                                                                                  │
+│                                                                                                                      │
+│  # Line 18-24: Normalization                                                                                         │
+│  def __init__(self, mean=None, std=None):                                                                            │
+│      if mean is None:                                                                                                │
+│          mean = (0.48145466, 0.4578275, 0.40821073)   # ImageNet mean                                                │
+│      if std is None:                                                                                                 │
+│          std = (0.26862954, 0.26130258, 0.27577711)   # ImageNet std                                                 │
+│      self.normalize = transforms.Normalize(mean, std)                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                               Text Processing (xraygpt/processors/blip_processors.py)                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 27-67: BlipCaptionProcessor.__call__()                                                                       │
+│  def __call__(self, caption):                                                                                        │
+│      caption = self.prompt + self.pre_caption(caption)  # Add prompt and clean                                       │
+│      return caption                                                                                                  │
+│                                                                                                                      │
+│  # Line 48-67: pre_caption() function                                                                                │
+│  def pre_caption(self, caption):                                                                                     │
+│      caption = re.sub(r"([.!\"()*#:;~])", " ", caption.lower())  # Remove punctuation                                │
+│      caption = re.sub(r"\s{2,}", " ", caption)                   # Remove extra spaces                               │
+│      caption = caption.rstrip("\n").strip(" ")                   # Strip whitespace                                  │
+│                                                                                                                      │
+│      caption_words = caption.split(" ")                          # Split into words                                  │
+│      if len(caption_words) > self.max_words:                     # Truncate if too long                              │
+│          caption = " ".join(caption_words[:self.max_words])                                                          │
+│                                                                                                                      │
+│      return caption                                                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│                             📍 STEP 10: Model Forward Pass (xraygpt/models/mini_gpt4.py)                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 190-250: MiniGPT4.forward()                                                                                  │
+│  def forward(self, samples):                                                                                         │
+│      image = samples["image"]                         # Line 191: Get image tensor [B,3,224,224]                     │
+│      img_embeds, atts_img = self.encode_img(image)    # Line 192: Encode image to embeddings                         │
+│                                                                                                                      │
+│      # Line 197-205: Handle prompts                                                                                  │
+│      if self.prompt_list:                                                                                            │
+│          prompt = random.choice(self.prompt_list)     # Random prompt selection                                      │
+│          img_embeds, atts_img = self.prompt_wrap(img_embeds, atts_img, prompt)                                       │
+│                                                                                                                      │
+│      self.llama_tokenizer.padding_side = "right"      # Line 207: Set padding side                                   │
+│                                                                                                                      │
+│      # Line 209-218: Tokenize text                                                                                   │
+│      text = [t + self.end_sym for t in samples["caption"]]  # Add end symbol                                         │
+│      to_regress_tokens = self.llama_tokenizer(                                                                       │
+│          text,                                                                                                       │
+│          return_tensors="pt",                                                                                        │
+│          padding="longest",                                                                                          │
+│          truncation=True,                                                                                            │
+│          max_length=self.max_txt_len,                                                                                │
+│          add_special_tokens=False                                                                                    │
+│      ).to(image.device)                                                                                              │
+│                                                                                                                      │
+│      # Line 220-228: Prepare targets for loss computation                                                            │
+│      targets = to_regress_tokens.input_ids.masked_fill(                                                              │
+│          to_regress_tokens.input_ids == self.llama_tokenizer.pad_token_id, -100                                      │
+│      )                                                                                                               │
+│      empty_targets = torch.ones([atts_img.shape[0], atts_img.shape[1]+1],                                            │
+│                                dtype=torch.long).to(image.device).fill_(-100)                                        │
+│      targets = torch.cat([empty_targets, targets], dim=1)                                                            │
+│                                                                                                                      │
+│      # Line 230-239: Prepare input embeddings                                                                        │
+│      batch_size = img_embeds.shape[0]                                                                                │
+│      bos = torch.ones([batch_size, 1], dtype=to_regress_tokens.input_ids.dtype,                                      │
+│                       device=to_regress_tokens.input_ids.device) * self.llama_tokenizer.bos_token_id                 │
+│      bos_embeds = self.llama_model.model.embed_tokens(bos)                                                           │
+│      to_regress_embeds = self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)                            │
+│      inputs_embeds = torch.cat([bos_embeds, img_embeds, to_regress_embeds], dim=1)                                   │
+│      attention_mask = torch.cat([atts_bos, atts_img, to_regress_tokens.attention_mask], dim=1)                       │
+│                                                                                                                      │
+│      # Line 241-248: Forward through LLaMA                                                                           │
+│      with self.maybe_autocast():                                                                                     │
+│          outputs = self.llama_model(                                                                                 │
+│              inputs_embeds=inputs_embeds,                                                                            │
+│              attention_mask=attention_mask,                                                                          │
+│              return_dict=True,                                                                                       │
+│              labels=targets,                                                                                         │
+│          )                                                                                                           │
+│      loss = outputs.loss                                                                                             │
+│                                                                                                                      │
+│      return {"loss": loss}                                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│                          📍 STEP 11: Image Encoding Pipeline (xraygpt/models/mini_gpt4.py)                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 152-172: encode_img() function                                                                               │
+│  def encode_img(self, image):                                                                                        │
+│      device = image.device                                                                                           │
+│      if self.low_resource:                                                                                           │
+│          self.vit_to_cpu()                                                                                           │
+│          image = image.to("cpu")                                                                                     │
+│                                                                                                                      │
+│      with self.maybe_autocast():                                                                                     │
+│          # Line 159: Vision encoder forward pass                                                                     │
+│          image_embeds = self.ln_vision(self.visual_encoder(image)).to(device)                                        │
+│          # Shape: [batch_size, num_patches, vision_dim] e.g., [B, 257, 1408]                                         │
+│                                                                                                                      │
+│          image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(device)                              │
+│          # Shape: [batch_size, num_patches] e.g., [B, 257]                                                           │
+│                                                                                                                      │
+│          # Line 162-168: Q-Former processing                                                                         │
+│          query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)                                      │
+│          # Shape: [batch_size, num_query_tokens, hidden_size] e.g., [B, 32, 768]                                     │
+│                                                                                                                      │
+│          query_output = self.Qformer.bert(                                                                           │
+│              query_embeds=query_tokens,                                                                              │
+│              encoder_hidden_states=image_embeds,                                                                     │
+│              encoder_attention_mask=image_atts,                                                                      │
+│              return_dict=True,                                                                                       │
+│          )                                                                                                           │
+│          # Shape: [batch_size, num_query_tokens, hidden_size] e.g., [B, 32, 768]                                     │
+│                                                                                                                      │
+│          # Line 170-171: Project to LLaMA space                                                                      │
+│          inputs_llama = self.llama_proj(query_output.last_hidden_state)                                              │
+│          # Shape: [batch_size, num_query_tokens, llama_dim] e.g., [B, 32, 4096]                                      │
+│                                                                                                                      │
+│          atts_llama = torch.ones(inputs_llama.size()[:-1], dtype=torch.long).to(image.device)                        │
+│          # Shape: [batch_size, num_query_tokens] e.g., [B, 32]                                                       │
+│                                                                                                                      │
+│      return inputs_llama, atts_llama                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│                              📍 STEP 12: Prompt Wrapping (xraygpt/models/mini_gpt4.py)                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 174-188: prompt_wrap() function                                                                              │
+│  def prompt_wrap(self, img_embeds, atts_img, prompt):                                                                │
+│      if prompt:                                                                                                      │
+│          batch_size = img_embeds.shape[0]                                                                            │
+│          p_before, p_after = prompt.split('<ImageHere>')  # Split prompt at image placeholder                        │
+│                                                                                                                      │
+│          # Line 178-181: Tokenize prompt parts                                                                       │
+│          p_before_tokens = self.llama_tokenizer(                                                                     │
+│              p_before, return_tensors="pt", add_special_tokens=False).to(img_embeds.device)                          │
+│          p_after_tokens = self.llama_tokenizer(                                                                      │
+│              p_after, return_tensors="pt", add_special_tokens=False).to(img_embeds.device)                           │
+│                                                                                                                      │
+│          # Line 182-183: Convert to embeddings                                                                       │
+│          p_before_embeds = self.llama_model.model.embed_tokens(p_before_tokens.input_ids).expand(batch_size, -1, -1  │
+│          p_after_embeds = self.llama_model.model.embed_tokens(p_after_tokens.input_ids).expand(batch_size, -1, -1)   │
+│                                                                                                                      │
+│          # Line 184-185: Concatenate [prompt_before + image + prompt_after]                                          │
+│          wrapped_img_embeds = torch.cat([p_before_embeds, img_embeds, p_after_embeds], dim=1)                        │
+│          wrapped_atts_img = atts_img[:, :1].expand(-1, wrapped_img_embeds.shape[1])                                  │
+│                                                                                                                      │
+│          return wrapped_img_embeds, wrapped_atts_img                                                                 │
+│      else:                                                                                                           │
+│          return img_embeds, atts_img                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                 📊 Data Flow Summary                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│  Raw X-ray Image (PIL)                                                                                               │
+│      ↓ [vis_processor]                                                                                               │
+│  Tensor [B,3,224,224]                                                                                                │
+│      ↓ [visual_encoder]                                                                                              │
+│  Vision Features [B,257,1408]                                                                                        │
+│      ↓ [ln_vision + Q-Former]                                                                                        │
+│  Query Features [B,32,768]                                                                                           │
+│      ↓ [llama_proj]                                                                                                  │
+│  LLaMA Input [B,32,4096]                                                                                             │
+│      ↓ [prompt_wrap]                                                                                                 │
+│  Prompted Features [B,seq_len,4096]                                                                                  │
+│                                                                                                                      │
+│  Raw Caption Text                                                                                                    │
+│      ↓ [text_processor]                                                                                              │
+│  Cleaned Text                                                                                                        │
+│      ↓ [llama_tokenizer]                                                                                             │
+│  Token IDs [B,max_len]                                                                                               │
+│      ↓ [embed_tokens]                                                                                                │
+│  Text Embeddings [B,max_len,4096]                                                                                    │
+│                                                                                                                      │
+│  Combined: [BOS + Image + Text] → [B,total_seq_len,4096] → LLaMA → Loss                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ This complete trace shows every step from loading the training script to the final loss computation, including all   │
+│ tokenization and embedding processes for both images and text.                                                       │
+│                                                                                                                      │
+│ Would you like me to dive deeper into any specific part of this flow, such as the Q-Former architecture, the vision  │
+│ encoder details, or the loss computation mechanism? 
