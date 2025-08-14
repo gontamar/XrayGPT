@@ -1,0 +1,248 @@
+                🔗 Complete Line-by-Line Code Connection Trace for XrayGPT Training                          │
+│                                                                                                                      │
+│                                       📍 PHASE 1: Entry Point & Initialization                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 train.py                                                                                                         │
+│  ├── Line 73: def main():                                                                                            │
+│  ├── Line 78:     job_id = now()                                                                                     │
+│  │   └── 🔗 CALLS: xraygpt/common/utils.py::now()                                                                    │
+│  │                                                                                                                   │
+│  ├── Line 80:     cfg = Config(parse_args())                                                                         │
+│  │   ├── 🔗 CALLS: train.py::parse_args() [Line 34-50]                                                               │
+│  │   └── 🔗 CALLS: xraygpt/common/config.py::Config.__init__()                                                       │
+│  │                                                                                                                   │
+│  ├── Line 82:     init_distributed_mode(cfg.run_cfg)                                                                 │
+│  │   └── 🔗 CALLS: xraygpt/common/dist_utils.py::init_distributed_mode()                                             │
+│  │                                                                                                                   │
+│  ├── Line 84:     setup_seeds(cfg)                                                                                   │
+│  │   └── 🔗 CALLS: train.py::setup_seeds() [Line 53-61]                                                              │
+│  │                                                                                                                   │
+│  ├── Line 87:     setup_logger()                                                                                     │
+│  │   └── 🔗 CALLS: xraygpt/common/logger.py::setup_logger()                                                          │
+│  │                                                                                                                   │
+│  ├── Line 89:     cfg.pretty_print()                                                                                 │
+│  │   └── 🔗 CALLS: xraygpt/common/config.py::Config.pretty_print()                                                   │
+│  │                                                                                                                   │
+│  ├── Line 91:     task = tasks.setup_task(cfg)                                                                       │
+│  │   └── 🔗 CALLS: xraygpt/tasks/__init__.py::setup_task() [Line 12]                                                 │
+│  │       ├── Line 15: task_name = cfg.run_cfg.task                                                                   │
+│  │       └── Line 16: task = registry.get_task_class(task_name).setup_task(cfg=cfg)                                  │
+│  │           ├── 🔗 CALLS: xraygpt/common/registry.py::get_task_class() [Line 239]                                   │
+│  │           │   └── 🔗 RETURNS: ImageTextPretrainTask (from xraygpt/tasks/image_text_pretrain.py)                   │
+│  │           └── 🔗 CALLS: xraygpt/tasks/base_task.py::BaseTask.setup_task() [Line 27]                               │
+│  │               └── 🔗 RETURNS: ImageTextPretrainTask instance                                                      │
+│  │                                                                                                                   │
+│  ├── Line 92:     datasets = task.build_datasets(cfg)                                                                │
+│  │   └── 🔗 CALLS: xraygpt/tasks/base_task.py::build_datasets() [Line 36]                                            │
+│  │       ├── Line 50: datasets_config = cfg.datasets_cfg                                                             │
+│  │       ├── Line 54: for name in datasets_config:                                                                   │
+│  │       ├── Line 55:     dataset_config = datasets_config[name]                                                     │
+│  │       ├── Line 57:     builder = registry.get_builder_class(name)(dataset_config)                                 │
+│  │       │   ├── 🔗 CALLS: xraygpt/common/registry.py::get_builder_class() [Line 231]                                │
+│  │       │   │   └── 🔗 RETURNS: MIMICBuilder or OpenIBuilder                                                        │
+│  │       │   └── 🔗 CALLS: xraygpt/datasets/builders/image_text_pair_builder.py::MIMICBuilder.__init__()             │
+│  │       ├── Line 58:     dataset = builder.build_datasets()                                                         │
+│  │       │   └── 🔗 CALLS: xraygpt/datasets/builders/image_text_pair_builder.py::MIMICBuilder.build_datasets() [Lin  │
+│  22]                                                                                                                 │
+│  │       │       ├── Line 25: self.build_processors()                                                                │
+│  │       │       │   └── 🔗 CALLS: xraygpt/datasets/builders/base_dataset_builder.py::build_processors()             │
+│  │       │       ├── Line 37: datasets['train'] = dataset_cls(...)                                                   │
+│  │       │       │   └── 🔗 CALLS: xraygpt/datasets/datasets/mimic_dataset.py::MIMICDataset.__init__()               │
+│  │       │       └── 🔗 RETURNS: {'train': MIMICDataset}                                                             │
+│  │       └── 🔗 RETURNS: {'mimic': {'train': MIMICDataset}}                                                          │
+│  │                                                                                                                   │
+│  ├── Line 93:     model = task.build_model(cfg)                                                                      │
+│  │   └── 🔗 CALLS: xraygpt/tasks/base_task.py::build_model() [Line 30]                                               │
+│  │       ├── Line 31: model_config = cfg.model_cfg                                                                   │
+│  │       ├── Line 33: model_cls = registry.get_model_class(model_config.arch)                                        │
+│  │       │   └── 🔗 CALLS: xraygpt/common/registry.py::get_model_class() [Line 235]                                  │
+│  │       │       └── 🔗 RETURNS: MiniGPT4 (from xraygpt/models/mini_gpt4.py)                                         │
+│  │       └── Line 34: return model_cls.from_config(model_config)                                                     │
+│  │           └── 🔗 CALLS: xraygpt/models/mini_gpt4.py::MiniGPT4.from_config() [Line 337]                            │
+│  │               ├── Line 357-373: model = cls(...)                                                                  │
+│  │               │   └── 🔗 CALLS: xraygpt/models/mini_gpt4.py::MiniGPT4.__init__() [Line 46]                        │
+│  │               │       ├── Line 66: self.tokenizer = self.init_tokenizer()                                         │
+│  │               │       ├── Line 70-72: self.visual_encoder, self.ln_vision = self.init_vision_encoder(...)         │
+│  │               │       ├── Line 86-87: self.Qformer, self.query_tokens = self.init_Qformer(...)                    │
+│  │               │       ├── Line 107: self.llama_tokenizer = LlamaTokenizer.from_pretrained(...)                    │
+│  │               │       ├── Line 111-120: self.llama_model = LlamaForCausalLM.from_pretrained(...)                  │
+│  │               │       └── Line 126-128: self.llama_proj = nn.Linear(...)                                          │
+│  │               ├── Line 375-380: Load checkpoint if exists                                                         │
+│  │               └── 🔗 RETURNS: Initialized MiniGPT4 instance                                                       │
+│  │                                                                                                                   │
+│  ├── Line 95-97: runner = get_runner_class(cfg)(cfg=cfg, job_id=job_id, task=task, model=model, datasets=datasets)   │
+│  │   ├── 🔗 CALLS: train.py::get_runner_class() [Line 64]                                                            │
+│  │   │   ├── Line 68: runner_cls = registry.get_runner_class(cfg.run_cfg.get("runner", "runner_base"))               │
+│  │   │   │   └── 🔗 CALLS: xraygpt/common/registry.py::get_runner_class() [Line 251]                                 │
+│  │   │   │       └── 🔗 RETURNS: RunnerBase (from xraygpt/runners/runner_base.py)                                    │
+│  │   │   └── 🔗 RETURNS: RunnerBase class                                                                            │
+│  │   └── 🔗 CALLS: xraygpt/runners/runner_base.py::RunnerBase.__init__() [Line 38]                                   │
+│  │                                                                                                                   │
+│  └── Line 98:     runner.train()                                                                                     │
+│      └── 🔗 CALLS: xraygpt/runners/runner_base.py::RunnerBase.train() [Line 362]                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                       📍 PHASE 2: Training Loop Initialization                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/runners/runner_base.py                                                                                   │
+│  ├── Line 362: def train(self):                                                                                      │
+│  ├── Line 363:     start_time = time.time()                                                                          │
+│  ├── Line 364:     best_agg_metric = 0                                                                               │
+│  ├── Line 365:     best_epoch = 0                                                                                    │
+│  ├── Line 367:     self.log_config()                                                                                 │
+│  │   └── 🔗 CALLS: xraygpt/runners/runner_base.py::log_config() [Line 421]                                           │
+│  ├── Line 369:     for cur_epoch in range(self.start_epoch, self.max_epoch):                                         │
+│  ├── Line 370:         if not self.evaluate_only:                                                                    │
+│  ├── Line 371:             if data_loader is not None:                                                               │
+│  ├── Line 372:                 self.log_stats(split_name="train", stats=train_stats)                                 │
+│  ├── Line 377:                 train_stats = self.train_epoch(cur_epoch)                                             │
+│  │   └── 🔗 CALLS: xraygpt/runners/runner_base.py::train_epoch() [Line 446]                                          │
+│  │       ├── Line 447: self.model.train()                                                                            │
+│  │       └── Line 449: return self.task.train_epoch(...)                                                             │
+│  │           └── 🔗 CALLS: xraygpt/tasks/base_task.py::train_epoch() [Line 107]                                      │
+│  │               └── Line 119: return self._train_inner_loop(...)                                                    │
+│  │                   └── 🔗 CALLS: xraygpt/tasks/base_task.py::_train_inner_loop() [Line 213]                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                           📍 PHASE 3: Inner Training Loop                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│  ├── Line 213: def _train_inner_loop(self, epoch, iters_per_epoch, model, data_loader, optimizer, lr_scheduler,      │
+│  scaler=None, start_iters=None, log_freq=50, cuda_enabled=False, accum_grad_iters=1):                                │
+│  ├── Line 233: use_amp = scaler is not None                                                                          │
+│  ├── Line 235-237: if not hasattr(data_loader, "__next__"): data_loader = iter(data_loader)                          │
+│  ├── Line 239: metric_logger = MetricLogger(delimiter="  ")                                                          │
+│  │   └── 🔗 CALLS: xraygpt/common/logger.py::MetricLogger.__init__()                                                 │
+│  ├── Line 258: for i in metric_logger.log_every(range(iters_per_epoch), log_freq, header):                           │
+│  ├── Line 263:     samples = next(data_loader)                                                                       │
+│  │   └── 🔗 CALLS: DataLoader.__next__() which triggers:                                                             │
+│  │       └── 🔗 CALLS: xraygpt/datasets/datasets/mimic_dataset.py::MIMICDataset.__getitem__() [Line 30]              │
+│  │           ├── Line 33: ann = self.annotation[index]                                                               │
+│  │           ├── Line 35: img_file = '{}.jpg'.format(ann["image_id"])                                                │
+│  │           ├── Line 36: image_path = os.path.join(self.vis_root, img_file)                                         │
+│  │           ├── Line 37: image = Image.open(image_path).convert("RGB")                                              │
+│  │           ├── Line 39: image = self.vis_processor(image)                                                          │
+│  │           │   └── 🔗 CALLS: xraygpt/processors/blip_processors.py::Blip2ImageTrainProcessor.__call__() [Line 70]  │
+│  │           │       └── Line 71: return self.transform(item)                                                        │
+│  │           │           └── 🔗 CALLS: torchvision.transforms.Compose.__call__()                                     │
+│  │           ├── Line 40: caption = ann['caption']                                                                   │
+│  │           └── 🔗 RETURNS: {"image": processed_tensor, "caption": text, "image_id": id}                            │
+│  │                                                                                                                   │
+│  ├── Line 265:     samples = prepare_sample(samples, cuda_enabled=cuda_enabled)                                      │
+│  │   └── 🔗 CALLS: xraygpt/datasets/data_utils.py::prepare_sample() [Line 89]                                        │
+│  │       ├── Line 90-91: if cuda_enabled: samples = move_to_cuda(samples)                                            │
+│  │       │   └── 🔗 CALLS: xraygpt/datasets/data_utils.py::move_to_cuda() [Line 82]                                  │
+│  │       │       └── Line 86: return apply_to_sample(_move_to_cuda, sample)                                          │
+│  │       │           └── 🔗 CALLS: xraygpt/datasets/data_utils.py::apply_to_sample() [Line 65]                       │
+│  │       └── 🔗 RETURNS: GPU-moved samples                                                                           │
+│  │                                                                                                                   │
+│  ├── Line 274:     lr_scheduler.step(cur_epoch=inner_epoch, cur_step=i)                                              │
+│  │   └── 🔗 CALLS: xraygpt/common/optims.py::LinearWarmupCosineLRScheduler.step()                                    │
+│  │                                                                                                                   │
+│  ├── Line 276:     with torch.cuda.amp.autocast(enabled=use_amp):                                                    │
+│  ├── Line 277:         loss = self.train_step(model=model, samples=samples)                                          │
+│  │   └── 🔗 CALLS: xraygpt/tasks/base_task.py::train_step() [Line 68]                                                │
+│  │       └── Line 69: loss = model(samples)["loss"]                                                                  │
+│  │           └── 🔗 CALLS: xraygpt/models/mini_gpt4.py::MiniGPT4.forward() [Line 190]                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                            📍 PHASE 4: Model Forward Pass                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/models/mini_gpt4.py                                                                                      │
+│  ├── Line 190: def forward(self, samples):                                                                           │
+│  ├── Line 191:     image = samples["image"]                                                                          │
+│  ├── Line 192:     img_embeds, atts_img = self.encode_img(image)                                                     │
+│  │   └── 🔗 CALLS: xraygpt/models/mini_gpt4.py::encode_img() [Line 152]                                              │
+│  │       ├── Line 159: image_embeds = self.ln_vision(self.visual_encoder(image)).to(device)                          │
+│  │       │   ├── 🔗 CALLS: xraygpt/models/eva_vit.py::VisionTransformer.forward()                                    │
+│  │       │   └── 🔗 CALLS: torch.nn.LayerNorm.forward()                                                              │
+│  │       ├── Line 162: query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)                        │
+│  │       ├── Line 163-168: query_output = self.Qformer.bert(...)                                                     │
+│  │       │   └── 🔗 CALLS: xraygpt/models/Qformer.py::BertModel.forward()                                            │
+│  │       ├── Line 170: inputs_llama = self.llama_proj(query_output.last_hidden_state)                                │
+│  │       │   └── 🔗 CALLS: torch.nn.Linear.forward()                                                                 │
+│  │       └── 🔗 RETURNS: (inputs_llama, atts_llama)                                                                  │
+│  │                                                                                                                   │
+│  ├── Line 197-205: if self.prompt_list: prompt = random.choice(self.prompt_list); img_embeds, atts_img =             │
+│  self.prompt_wrap(img_embeds, atts_img, prompt)                                                                      │
+│  │   └── 🔗 CALLS: xraygpt/models/mini_gpt4.py::prompt_wrap() [Line 174]                                             │
+│  │       ├── Line 177: p_before, p_after = prompt.split('<ImageHere>')                                               │
+│  │       ├── Line 178-181: Tokenize prompt parts with self.llama_tokenizer(...)                                      │
+│  │       ├── Line 182-183: Convert to embeddings with self.llama_model.model.embed_tokens(...)                       │
+│  │       ├── Line 184: wrapped_img_embeds = torch.cat([p_before_embeds, img_embeds, p_after_embeds], dim=1)          │
+│  │       └── 🔗 RETURNS: (wrapped_img_embeds, wrapped_atts_img)                                                      │
+│  │                                                                                                                   │
+│  ├── Line 207: self.llama_tokenizer.padding_side = "right"                                                           │
+│  ├── Line 209: text = [t + self.end_sym for t in samples["caption"]]                                                 │
+│  ├── Line 211-218: to_regress_tokens = self.llama_tokenizer(text, ...)                                               │
+│  │   └── 🔗 CALLS: transformers.LlamaTokenizer.__call__()                                                            │
+│  │                                                                                                                   │
+│  ├── Line 220-222: targets = to_regress_tokens.input_ids.masked_fill(...)                                            │
+│  ├── Line 224-227: empty_targets = torch.ones(...).fill_(-100); targets = torch.cat([empty_targets, targets], dim=1  │
+│  ├── Line 230-233: bos = torch.ones(...) * self.llama_tokenizer.bos_token_id; bos_embeds =                           │
+│  self.llama_model.model.embed_tokens(bos)                                                                            │
+│  ├── Line 237: to_regress_embeds = self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)                  │
+│  ├── Line 238: inputs_embeds = torch.cat([bos_embeds, img_embeds, to_regress_embeds], dim=1)                         │
+│  ├── Line 239: attention_mask = torch.cat([atts_bos, atts_img, to_regress_tokens.attention_mask], dim=1)             │
+│  │                                                                                                                   │
+│  ├── Line 241: with self.maybe_autocast():                                                                           │
+│  ├── Line 242-247: outputs = self.llama_model(inputs_embeds=inputs_embeds, attention_mask=attention_mask,            │
+│  return_dict=True, labels=targets)                                                                                   │
+│  │   └── 🔗 CALLS: xraygpt/models/modeling_llama.py::LlamaForCausalLM.forward()                                      │
+│  │       └── 🔗 CALLS: transformers.models.llama.modeling_llama.LlamaForCausalLM.forward()                           │
+│  │                                                                                                                   │
+│  ├── Line 248: loss = outputs.loss                                                                                   │
+│  └── Line 250: return {"loss": loss}                                                                                 │
+│      └── 🔗 RETURNS: {"loss": computed_loss_tensor}                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                       📍 PHASE 5: Backward Pass & Optimization                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│  ├── Line 280: if use_amp:                                                                                           │
+│  ├── Line 281:     scaler.scale(loss).backward()                                                                     │
+│  │   └── 🔗 CALLS: torch.cuda.amp.GradScaler.scale() → torch.Tensor.backward()                                       │
+│  ├── Line 282: else:                                                                                                 │
+│  ├── Line 283:     loss.backward()                                                                                   │
+│  │   └── 🔗 CALLS: torch.Tensor.backward()                                                                           │
+│  │                                                                                                                   │
+│  ├── Line 286: if (i + 1) % accum_grad_iters == 0:                                                                   │
+│  ├── Line 287:     if use_amp:                                                                                       │
+│  ├── Line 288:         scaler.step(optimizer)                                                                        │
+│  │   └── 🔗 CALLS: torch.cuda.amp.GradScaler.step()                                                                  │
+│  ├── Line 289:         scaler.update()                                                                               │
+│  │   └── 🔗 CALLS: torch.cuda.amp.GradScaler.update()                                                                │
+│  ├── Line 290:     else:                                                                                             │
+│  ├── Line 291:         optimizer.step()                                                                              │
+│  │   └── 🔗 CALLS: torch.optim.AdamW.step()                                                                          │
+│  ├── Line 292:     optimizer.zero_grad()                                                                             │
+│  │   └── 🔗 CALLS: torch.optim.AdamW.zero_grad()                                                                     │
+│  │                                                                                                                   │
+│  ├── Line 294: metric_logger.update(loss=loss.item())                                                                │
+│  ├── Line 295: metric_logger.update(lr=optimizer.param_groups[0]["lr"])                                              │
+│  └── Loop continues until iters_per_epoch completed                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                         📍 PHASE 6: Epoch Completion & Loop                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│  ├── Line 298-300: metric_logger.synchronize_between_processes(); logging.info("Averaged stats: " +                  │
+│  str(metric_logger.global_avg()))                                                                                    │
+│  └── Line 301-304: return {k: "{:.3f}".format(meter.global_avg) for k, meter in metric_logger.meters.items()}        │
+│      └── 🔗 RETURNS: Training statistics dictionary                                                                  │
+│                                                                                                                      │
+│  📁 xraygpt/runners/runner_base.py                                                                                   │
+│  ├── Line 377: train_stats = self.train_epoch(cur_epoch) [COMPLETED]                                                 │
+│  ├── Line 378: self.log_stats(split_name="train", stats=train_stats)                                                 │
+│  ├── Line 380-390: Validation and checkpointing logic                                                                │
+│  └── Line 369: for cur_epoch in range(...): [CONTINUES TO NEXT EPOCH]                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│ This complete trace shows every single line connection from the initial train.py execution through the entire        │
+│ training loop, including all function calls, file transitions, and data flow paths. 
