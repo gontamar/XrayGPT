@@ -1,0 +1,333 @@
+ Now let me show you the exact code connection flow for how registry.get_builder_class(name) returns the builder      │
+│ classes:                                                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                  🔗 Exact Code Connection: Registry Builder Lookup                                   │
+│                                                                                                                      │
+│                                    📍 STEP 1: Registration Phase (During Import)                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/datasets/builders/image_text_pair_builder.py                                                             │
+│                                                                                                                      │
+│  # Line 4: Import registry                                                                                           │
+│  from xraygpt.common.registry import registry                                                                        │
+│                                                                                                                      │
+│  # Line 10-11: Register MIMICBuilder                                                                                 │
+│  @registry.register_builder("mimic")                                                                                 │
+│  class MIMICBuilder(BaseDatasetBuilder):                                                                             │
+│      # This decorator calls registry.register_builder("mimic")                                                       │
+│      # which stores: mapping["builder_name_mapping"]["mimic"] = MIMICBuilder                                         │
+│                                                                                                                      │
+│  # Line 47-48: Register OpenIBuilder                                                                                 │
+│  @registry.register_builder("openi")                                                                                 │
+│  class OpenIBuilder(BaseDatasetBuilder):                                                                             │
+│      # This decorator calls registry.register_builder("openi")                                                       │
+│      # which stores: mapping["builder_name_mapping"]["openi"] = OpenIBuilder                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                        📍 STEP 2: Registry Storage Mechanism                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/common/registry.py                                                                                       │
+│                                                                                                                      │
+│  # Line 21-50: register_builder decorator                                                                            │
+│  @classmethod                                                                                                        │
+│  def register_builder(cls, name):                                                                                    │
+│      def wrap(builder_cls):                                                                                          │
+│          # Line 47: Store in mapping                                                                                 │
+│          cls.mapping["builder_name_mapping"][name] = builder_cls                                                     │
+│          return builder_cls                                                                                          │
+│      return wrap                                                                                                     │
+│                                                                                                                      │
+│  # Internal storage after registration:                                                                              │
+│  # cls.mapping["builder_name_mapping"] = {                                                                           │
+│  #     "mimic": MIMICBuilder,                                                                                        │
+│  #     "openi": OpenIBuilder                                                                                         │
+│  # }                                                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                      📍 STEP 3: Lookup Phase (During Training)                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│                                                                                                                      │
+│  # Line 57: Get builder class by name                                                                                │
+│  builder = registry.get_builder_class(name)(dataset_config)                                                          │
+│  #          ↓                                                                                                        │
+│  #          🔗 CALLS: registry.get_builder_class(name)                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                         📍 STEP 4: Registry Lookup Mechanism                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/common/registry.py                                                                                       │
+│                                                                                                                      │
+│  # Line 231-232: get_builder_class method                                                                            │
+│  @classmethod                                                                                                        │
+│  def get_builder_class(cls, name):                                                                                   │
+│      return cls.mapping["builder_name_mapping"].get(name, None)                                                      │
+│      #      ↓                                                                                                        │
+│      #      🔗 RETURNS:                                                                                              │
+│      #         - If name="mimic" → returns MIMICBuilder class                                                        │
+│      #         - If name="openi" → returns OpenIBuilder class                                                        │
+│      #         - If name not found → returns None                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                        📍 STEP 5: Complete Flow Visualization                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # REGISTRATION FLOW (happens during import):                                                                        │
+│  train.py                                                                                                            │
+│  ├── Line 27: from xraygpt.datasets.builders import *                                                                │
+│  │   └── 🔗 IMPORTS: xraygpt/datasets/builders/image_text_pair_builder.py                                            │
+│  │       ├── Line 10: @registry.register_builder("mimic")                                                            │
+│  │       │   └── 🔗 STORES: registry.mapping["builder_name_mapping"]["mimic"] = MIMICBuilder                         │
+│  │       └── Line 47: @registry.register_builder("openi")                                                            │
+│  │           └── 🔗 STORES: registry.mapping["builder_name_mapping"]["openi"] = OpenIBuilder                         │
+│                                                                                                                      │
+│  # LOOKUP FLOW (happens during training):                                                                            │
+│  xraygpt/tasks/base_task.py                                                                                          │
+│  └── Line 57: builder = registry.get_builder_class(name)(dataset_config)                                             │
+│      ├── 🔗 CALLS: registry.get_builder_class("mimic")                                                               │
+│      │   └── 🔗 RETURNS: MIMICBuilder class from mapping["builder_name_mapping"]["mimic"]                            │
+│      │                                                                                                               │
+│      └── 🔗 THEN: MIMICBuilder(dataset_config)                                                                       │
+│          └── 🔗 CREATES: MIMICBuilder instance                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                         📍 STEP 6: The name Parameter Source                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│                                                                                                                      │
+│  # Line 50-57: Where 'name' comes from                                                                               │
+│  datasets_config = cfg.datasets_cfg  # From YAML config                                                              │
+│                                                                                                                      │
+│  for name in datasets_config:  # name = "mimic" or "openi"                                                           │
+│      dataset_config = datasets_config[name]                                                                          │
+│      builder = registry.get_builder_class(name)(dataset_config)                                                      │
+│      #                                   ↑                                                                           │
+│      #                                   name="mimic" → returns MIMICBuilder                                         │
+│      #                                   name="openi" → returns OpenIBuilder                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                           📍 STEP 7: Configuration Source                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 train_configs/xraygpt_mimic_pretrain.yaml                                                                        │
+│                                                                                                                      │
+│  datasets:                                                                                                           │
+│    mimic:  # ← This becomes the 'name' parameter                                                                     │
+│      vis_processor:                                                                                                  │
+│        train:                                                                                                        │
+│          name: "blip2_image_train"                                                                                   │
+│          image_size: 224                                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                         📍 STEP 8: Complete Connection Chain                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  YAML Config → cfg.datasets_cfg → name="mimic" → registry.get_builder_class("mimic")                                 │
+│      ↓                                                                                                               │
+│  registry.mapping["builder_name_mapping"]["mimic"] → MIMICBuilder class                                              │
+│      ↓                                                                                                               │
+│  MIMICBuilder(dataset_config) → MIMICBuilder instance                                                                │
+│      ↓                                                                                                               │
+│  builder.build_datasets() → Creates MIMICDataset instances                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ The key insight: The registry acts as a central lookup table where:                                                  │
+│                                                                                                                      │
+│  1 Registration phase: @registry.register_builder("mimic") stores MIMICBuilder class with key "mimic"                │
+│  2 Lookup phase: registry.get_builder_class("mimic") retrieves the stored MIMICBuilder class                         │
+│  3 Instantiation: MIMICBuilder(dataset_config) creates an actual builder instance                                    │
+│                                                                                                                      │
+│ This pattern allows dynamic class loading based on configuration without hardcoded imports! 
+
+
+                                                                                        │
+│                                   🔗 Exact Code Connection: Registry Model Lookup                                    │
+│                                                                                                                      │
+│                                    📍 STEP 1: Registration Phase (During Import)                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/models/mini_gpt4.py                                                                                      │
+│                                                                                                                      │
+│  # Line 7: Import registry                                                                                           │
+│  from xraygpt.common.registry import registry                                                                        │
+│                                                                                                                      │
+│  # Line 36-37: Register MiniGPT4                                                                                     │
+│  @registry.register_model("mini_gpt4")                                                                               │
+│  class MiniGPT4(Blip2Base):                                                                                          │
+│      # This decorator calls registry.register_model("mini_gpt4")                                                     │
+│      # which stores: mapping["model_name_mapping"]["mini_gpt4"] = MiniGPT4                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                        📍 STEP 2: Registry Storage Mechanism                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/common/registry.py                                                                                       │
+│                                                                                                                      │
+│  # Line 82-108: register_model decorator                                                                             │
+│  @classmethod                                                                                                        │
+│  def register_model(cls, name):                                                                                      │
+│      def wrap(model_cls):                                                                                            │
+│          # Line 105: Store in mapping                                                                                │
+│          cls.mapping["model_name_mapping"][name] = model_cls                                                         │
+│          return model_cls                                                                                            │
+│      return wrap                                                                                                     │
+│                                                                                                                      │
+│  # Internal storage after registration:                                                                              │
+│  # cls.mapping["model_name_mapping"] = {                                                                             │
+│  #     "mini_gpt4": MiniGPT4                                                                                         │
+│  # }                                                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                      📍 STEP 3: Lookup Phase (During Training)                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│                                                                                                                      │
+│  # Line 30-34: build_model method                                                                                    │
+│  def build_model(self, cfg):                                                                                         │
+│      model_config = cfg.model_cfg                                                                                    │
+│                                                                                                                      │
+│      model_cls = registry.get_model_class(model_config.arch)                                                         │
+│      #           ↓                                                                                                   │
+│      #           🔗 CALLS: registry.get_model_class(model_config.arch)                                               │
+│                                                                                                                      │
+│      return model_cls.from_config(model_config)                                                                      │
+│      #      ↓                                                                                                        │
+│      #      🔗 CALLS: MiniGPT4.from_config(model_config)                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                         📍 STEP 4: Registry Lookup Mechanism                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/common/registry.py                                                                                       │
+│                                                                                                                      │
+│  # Line 235-236: get_model_class method                                                                              │
+│  @classmethod                                                                                                        │
+│  def get_model_class(cls, name):                                                                                     │
+│      return cls.mapping["model_name_mapping"].get(name, None)                                                        │
+│      #      ↓                                                                                                        │
+│      #      🔗 RETURNS:                                                                                              │
+│      #         - If name="mini_gpt4" → returns MiniGPT4 class                                                        │
+│      #         - If name not found → returns None                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                            📍 STEP 5: Model Instantiation                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/models/mini_gpt4.py                                                                                      │
+│                                                                                                                      │
+│  # Line 337-381: from_config class method                                                                            │
+│  @classmethod                                                                                                        │
+│  def from_config(cls, cfg):                                                                                          │
+│      # Extract config parameters                                                                                     │
+│      vit_model = cfg.get("vit_model", "eva_clip_g")                                                                  │
+│      q_former_model = cfg.get("q_former_model", "...")                                                               │
+│      img_size = cfg.get("image_size")                                                                                │
+│      # ... more parameters                                                                                           │
+│                                                                                                                      │
+│      # Line 357-373: Create model instance                                                                           │
+│      model = cls(                                                                                                    │
+│          vit_model=vit_model,                                                                                        │
+│          q_former_model=q_former_model,                                                                              │
+│          img_size=img_size,                                                                                          │
+│          # ... all parameters                                                                                        │
+│      )                                                                                                               │
+│                                                                                                                      │
+│      # Line 375-380: Load checkpoint if specified                                                                    │
+│      ckpt_path = cfg.get("ckpt", "")                                                                                 │
+│      if ckpt_path:                                                                                                   │
+│          ckpt = torch.load(ckpt_path, map_location="cpu")                                                            │
+│          msg = model.load_state_dict(ckpt['model'], strict=False)                                                    │
+│                                                                                                                      │
+│      return model                                                                                                    │
+│      #      ↓                                                                                                        │
+│      #      🔗 RETURNS: Fully initialized MiniGPT4 instance                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                        📍 STEP 6: Complete Flow Visualization                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # REGISTRATION FLOW (happens during import):                                                                        │
+│  train.py                                                                                                            │
+│  ├── Line 28: from xraygpt.models import *                                                                           │
+│  │   └── 🔗 IMPORTS: xraygpt/models/mini_gpt4.py                                                                     │
+│  │       └── Line 36: @registry.register_model("mini_gpt4")                                                          │
+│  │           └── 🔗 STORES: registry.mapping["model_name_mapping"]["mini_gpt4"] = MiniGPT4                           │
+│                                                                                                                      │
+│  # LOOKUP FLOW (happens during training):                                                                            │
+│  train.py                                                                                                            │
+│  └── Line 93: model = task.build_model(cfg)                                                                          │
+│      └── 🔗 CALLS: xraygpt/tasks/base_task.py::build_model()                                                         │
+│          ├── Line 32: model_config = cfg.model_cfg                                                                   │
+│          ├── Line 33: model_cls = registry.get_model_class(model_config.arch)                                        │
+│          │   └── 🔗 CALLS: registry.get_model_class("mini_gpt4")                                                     │
+│          │       └── 🔗 RETURNS: MiniGPT4 class from mapping["model_name_mapping"]["mini_gpt4"]                      │
+│          │                                                                                                           │
+│          └── Line 34: return model_cls.from_config(model_config)                                                     │
+│              └── 🔗 CALLS: MiniGPT4.from_config(model_config)                                                        │
+│                  └── 🔗 RETURNS: Initialized MiniGPT4 instance                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                  📍 STEP 7: The model_config.arch Parameter Source                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 xraygpt/tasks/base_task.py                                                                                       │
+│                                                                                                                      │
+│  # Line 31-32: Where 'arch' comes from                                                                               │
+│  model_config = cfg.model_cfg  # From YAML config                                                                    │
+│  model_cls = registry.get_model_class(model_config.arch)                                                             │
+│  #                                    ↑                                                                              │
+│  #                                    model_config.arch = "mini_gpt4"                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                           📍 STEP 8: Configuration Source                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  📁 train_configs/xraygpt_mimic_pretrain.yaml                                                                        │
+│                                                                                                                      │
+│  model:                                                                                                              │
+│    arch: mini_gpt4  # ← This becomes model_config.arch                                                               │
+│    model_type: pretrain_vicuna                                                                                       │
+│    freeze_vit: True                                                                                                  │
+│    freeze_qformer: True                                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                         📍 STEP 9: Complete Connection Chain                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  YAML Config → cfg.model_cfg → model_config.arch="mini_gpt4"                                                         │
+│      ↓                                                                                                               │
+│  registry.get_model_class("mini_gpt4")                                                                               │
+│      ↓                                                                                                               │
+│  registry.mapping["model_name_mapping"]["mini_gpt4"] → MiniGPT4 class                                                │
+│      ↓                                                                                                               │
+│  MiniGPT4.from_config(model_config) → Creates MiniGPT4 instance                                                      │
+│      ↓                                                                                                               │
+│  Loads checkpoint, initializes components → Fully configured model                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                   📍 STEP 10: Key Differences from Builder Pattern                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Builder Pattern (Datasets):                                                                                       │
+│  builder = registry.get_builder_class(name)(dataset_config)  # Direct instantiation                                  │
+│  dataset = builder.build_datasets()                          # Then call build method                                │
+│                                                                                                                      │
+│  # Model Pattern:                                                                                                    │
+│  model_cls = registry.get_model_class(model_config.arch)     # Get class                                             │
+│  model = model_cls.from_config(model_config)                # Use factory method                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ The key insight: The model registration follows the same registry pattern as builders, but uses a factory method     │
+│ (from_config) instead of direct instantiation. This allows for:                                                      │
+│                                                                                                                      │
+│  1 Complex initialization: Loading pretrained weights, setting up multiple components                                │
+│  2 Configuration parsing: Converting YAML config to model parameters                                                 │
+│  3 Conditional setup: Different initialization based on config flags                                                 │
+│                                                                                                                      │
+│ The registry acts as the central dispatcher that maps string identifiers to actual Python classes!   
