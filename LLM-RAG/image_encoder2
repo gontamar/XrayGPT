@@ -1,0 +1,554 @@
+ Response ───────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Perfect! Now I'll provide a complete line-by-line code trace of how image encoding happens in XrayGPT, following the │
+│ exact execution flow with specific line numbers and tensor transformations.                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                Complete Line-by-Line Image Encoding Trace in XrayGPT                                 │
+│                                                                                                                      │
+│ Let me trace the execution from the moment a preprocessed image enters the vision encoder until it produces final    │
+│ image embeddings.                                                                                                    │
+│                                                                                                                      │
+│                                       Entry Point: Image Enters Vision Encoder                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 159 in mini_gpt4.py (encode_img method)                                                                      │
+│  image_embeds = self.ln_vision(self.visual_encoder(image)).to(device)                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Execution Flow: self.visual_encoder(image) → Line 348 in eva_vit.py                                                  │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                      STEP 1: VisionTransformer.forward() Entry                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 348-351 in eva_vit.py                                                                                        │
+│  def forward(self, x):                                                                                               │
+│      x = self.forward_features(x)                                                                                    │
+│      # x = self.head(x)  # ← COMMENTED OUT (no classification head)                                                  │
+│      return x                                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 348: Function entry point for image encoding Line 349: EXECUTES: Calls self.forward_features(x) Line 350:       │
+│ SKIPPED: No classification head needed Line 351: Returns processed features                                          │
+│                                                                                                                      │
+│ Execution Flow: self.forward_features(x) → Line 323 in eva_vit.py                                                    │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                   STEP 2: Patch Embedding (forward_features Entry)                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 323-331 in eva_vit.py (forward_features)                                                                     │
+│  def forward_features(self, x):                                                                                      │
+│      x = self.patch_embed(x)  # ← EXECUTES: Patch embedding                                                          │
+│      batch_size, seq_len, _ = x.size()                                                                               │
+│                                                                                                                      │
+│      cls_tokens = self.cls_token.expand(batch_size, -1, -1)                                                          │
+│      x = torch.cat((cls_tokens, x), dim=1)                                                                           │
+│      if self.pos_embed is not None:                                                                                  │
+│          x = x + self.pos_embed                                                                                      │
+│      x = self.pos_drop(x)                                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 324: EXECUTES: self.patch_embed(x) → PatchEmbed.forward()                                                       │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                STEP 3: Patch Embedding Execution (PatchEmbed.forward)                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 197-203 in eva_vit.py (PatchEmbed.forward)                                                                   │
+│  def forward(self, x, **kwargs):                                                                                     │
+│      B, C, H, W = x.shape  # ← Extract dimensions                                                                    │
+│      assert H == self.img_size[0] and W == self.img_size[1], \                                                       │
+│          f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."                  │
+│      x = self.proj(x).flatten(2).transpose(1, 2)  # ← MAIN PROCESSING                                                │
+│      return x                                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 198: Extract tensor dimensions                                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Input: x = [batch_size, 3, 224, 224] (preprocessed X-ray images)                                                  │
+│  B, C, H, W = x.shape                                                                                                │
+│  # B = batch_size (e.g., 2)                                                                                          │
+│  # C = 3 (RGB channels)                                                                                              │
+│  # H = 224 (height)                                                                                                  │
+│  # W = 224 (width)                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 199-200: Size validation                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Ensures input matches expected size (224×224)                                                                     │
+│  assert H == self.img_size[0] and W == self.img_size[1]                                                              │
+│  # self.img_size = (224, 224)                                                                                        │
+│  # Assertion passes: 224 == 224 and 224 == 224                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 202: CORE PATCH EMBEDDING OPERATION                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = self.proj(x).flatten(2).transpose(1, 2)                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Detailed Breakdown of Line 202:                                                                                      │
+│                                                                                                                      │
+│ Step 1: self.proj(x) - Convolutional patch extraction                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # self.proj = nn.Conv2d(3, 1408, kernel_size=14, stride=14)                                                         │
+│  # Input: [batch_size, 3, 224, 224]                                                                                  │
+│  # Convolution operation:                                                                                            │
+│  # - kernel_size=14: Each patch is 14×14 pixels                                                                      │
+│  # - stride=14: Non-overlapping patches                                                                              │
+│  # - out_channels=1408: Each patch becomes 1408-dimensional vector                                                   │
+│                                                                                                                      │
+│  # Mathematical process:                                                                                             │
+│  # Number of patches = (224/14) × (224/14) = 16 × 16 = 256 patches                                                   │
+│  # Each 14×14×3 patch → 1408-dimensional embedding                                                                   │
+│                                                                                                                      │
+│  projected = self.proj(x)  # [batch_size, 1408, 16, 16]                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step 2: .flatten(2) - Flatten spatial dimensions                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Input: [batch_size, 1408, 16, 16]                                                                                 │
+│  # .flatten(2) flattens from dimension 2 onwards                                                                     │
+│  # [batch_size, 1408, 16, 16] → [batch_size, 1408, 256]                                                              │
+│  # 256 = 16 × 16 (total number of patches)                                                                           │
+│                                                                                                                      │
+│  flattened = projected.flatten(2)  # [batch_size, 1408, 256]                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step 3: .transpose(1, 2) - Swap dimensions for sequence format                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Input: [batch_size, 1408, 256]                                                                                    │
+│  # .transpose(1, 2) swaps dimensions 1 and 2                                                                         │
+│  # [batch_size, 1408, 256] → [batch_size, 256, 1408]                                                                 │
+│  # Final format: [batch_size, sequence_length, embedding_dim]                                                        │
+│                                                                                                                      │
+│  x = flattened.transpose(1, 2)  # [batch_size, 256, 1408]                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 203: Return patch embeddings                                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│  return x  # [batch_size, 256, 1408] - 256 patch tokens, each 1408-dimensional                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                    STEP 4: Add CLS Token and Position Embeddings                                     │
+│                                                                                                                      │
+│ Back to Line 325-331 in forward_features:                                                                            │
+│                                                                                                                      │
+│ Line 325: Extract sequence dimensions                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  batch_size, seq_len, _ = x.size()                                                                                   │
+│  # batch_size = 2                                                                                                    │
+│  # seq_len = 256 (number of patches)                                                                                 │
+│  # _ = 1408 (embedding dimension, ignored)                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 327: Expand CLS token for batch                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│  cls_tokens = self.cls_token.expand(batch_size, -1, -1)                                                              │
+│  # self.cls_token: [1, 1, 1408] - learnable classification token                                                     │
+│  # .expand(batch_size, -1, -1): [1, 1, 1408] → [batch_size, 1, 1408]                                                 │
+│  # Result: [2, 1, 1408] - CLS token for each sample in batch                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 328: Concatenate CLS token with patches                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = torch.cat((cls_tokens, x), dim=1)                                                                               │
+│  # cls_tokens: [batch_size, 1, 1408]                                                                                 │
+│  # x (patches): [batch_size, 256, 1408]                                                                              │
+│  # torch.cat(..., dim=1): Concatenate along sequence dimension                                                       │
+│  # Result: [batch_size, 257, 1408] = [CLS] + [256 patches]                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 329-330: Add position embeddings                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  if self.pos_embed is not None:  # ← TRUE                                                                            │
+│      x = x + self.pos_embed                                                                                          │
+│  # self.pos_embed: [1, 257, 1408] - learnable position embeddings                                                    │
+│  # x: [batch_size, 257, 1408]                                                                                        │
+│  # Broadcasting addition: each token gets its position embedding                                                     │
+│  # Result: [batch_size, 257, 1408] with position information                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 331: Apply position dropout                                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = self.pos_drop(x)                                                                                                │
+│  # Applies dropout for regularization during training                                                                │
+│  # Shape unchanged: [batch_size, 257, 1408]                                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                    STEP 5: Process Through 39 Transformer Blocks                                     │
+│                                                                                                                      │
+│ Line 333-338 in forward_features:                                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│  rel_pos_bias = self.rel_pos_bias() if self.rel_pos_bias is not None else None                                       │
+│  for blk in self.blocks:  # ← 39 iterations (39 transformer blocks)                                                  │
+│      if self.use_checkpoint:                                                                                         │
+│          x = checkpoint.checkpoint(blk, x, rel_pos_bias)                                                             │
+│      else:                                                                                                           │
+│          x = blk(x, rel_pos_bias)  # ← EXECUTES: Process through each block                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 333: Relative position bias (usually None for EVA-CLIP) Line 334: LOOP START: Iterates through 39 transformer   │
+│ blocks Line 335-336: SKIPPED: Gradient checkpointing usually disabled during inference Line 338: EXECUTES: blk(x,    │
+│ rel_pos_bias) → Block.forward()                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                             STEP 6: Single Transformer Block Processing (Block.forward)                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Block.forward (from grep output)                                                                                  │
+│  def forward(self, x, rel_pos_bias=None):                                                                            │
+│      if self.gamma_1 is None:  # ← TRUE (no learnable scaling)                                                       │
+│          x = x + self.drop_path(self.attn(self.norm1(x), rel_pos_bias=rel_pos_bias))                                 │
+│          x = x + self.drop_path(self.mlp(self.norm2(x)))                                                             │
+│      else:                                                                                                           │
+│          # SKIPPED: gamma scaling not used                                                                           │
+│      return x                                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Processing Flow for Each Block:                                                                                      │
+│                                                                                                                      │
+│                                         🔸 First Residual Branch (Attention)                                         │
+│                                                                                                                      │
+│ Step 1: Layer Normalization                                                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # x = x + self.drop_path(self.attn(self.norm1(x), rel_pos_bias=rel_pos_bias))                                       │
+│  #                              ↑                                                                                    │
+│  #                        self.norm1(x)                                                                              │
+│                                                                                                                      │
+│  normalized_x = self.norm1(x)  # LayerNorm on [batch_size, 257, 1408]                                                │
+│  # LayerNorm formula: (x - mean) / sqrt(var + eps) * weight + bias                                                   │
+│  # Applied across last dimension (1408)                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step 2: Multi-Head Self-Attention                                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # self.attn(normalized_x, rel_pos_bias=rel_pos_bias) → Attention.forward()                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                             STEP 7: Multi-Head Attention Processing (Attention.forward)                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Attention.forward (from grep output)                                                                              │
+│  def forward(self, x, rel_pos_bias=None):                                                                            │
+│      B, N, C = x.shape  # ← Extract dimensions                                                                       │
+│      qkv_bias = None                                                                                                 │
+│      if self.q_bias is not None:                                                                                     │
+│          qkv_bias = torch.cat((self.q_bias, torch.zeros_like(self.v_bias, requires_grad=False), self.v_bias))        │
+│      qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)                                                  │
+│      qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)                                           │
+│      q, k, v = qkv[0], qkv[1], qkv[2]                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 1: Extract attention dimensions                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│  B, N, C = x.shape                                                                                                   │
+│  # B = batch_size (2)                                                                                                │
+│  # N = sequence_length (257) = 1 CLS + 256 patches                                                                   │
+│  # C = embedding_dim (1408)                                                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 2-5: Prepare QKV bias (usually None for EVA-CLIP)                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  qkv_bias = None  # No bias used in EVA-CLIP                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 6: QKV Linear Projection                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)                                                      │
+│  # x: [batch_size, 257, 1408]                                                                                        │
+│  # self.qkv.weight: [4224, 1408] where 4224 = 1408 × 3 (Q, K, V)                                                     │
+│  # Matrix multiplication: [batch_size, 257, 1408] @ [1408, 4224]                                                     │
+│  # Result: [batch_size, 257, 4224] - concatenated Q, K, V projections                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 7: Reshape for multi-head attention                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)                                               │
+│  # Step 1: Reshape                                                                                                   │
+│  # [batch_size, 257, 4224] → [batch_size, 257, 3, 16, 88]                                                            │
+│  # 3 = Q,K,V; 16 = num_heads; 88 = head_dim (1408//16)                                                               │
+│                                                                                                                      │
+│  # Step 2: Permute dimensions                                                                                        │
+│  # [batch_size, 257, 3, 16, 88] → [3, batch_size, 16, 257, 88]                                                       │
+│  # Format: [qkv_index, batch, heads, sequence, head_dim]                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 8: Split into Q, K, V                                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  q, k, v = qkv[0], qkv[1], qkv[2]                                                                                    │
+│  # q: [batch_size, 16, 257, 88] - Query matrices for 16 heads                                                        │
+│  # k: [batch_size, 16, 257, 88] - Key matrices for 16 heads                                                          │
+│  # v: [batch_size, 16, 257, 88] - Value matrices for 16 heads                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Continue Attention.forward:                                                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│      q = q * self.scale                                                                                              │
+│      attn = (q @ k.transpose(-2, -1))                                                                                │
+│                                                                                                                      │
+│      # ... relative position bias handling (usually skipped) ...                                                     │
+│                                                                                                                      │
+│      attn = attn.softmax(dim=-1)                                                                                     │
+│      attn = self.attn_drop(attn)                                                                                     │
+│                                                                                                                      │
+│      x = (attn @ v).transpose(1, 2).reshape(B, N, -1)                                                                │
+│      x = self.proj(x)                                                                                                │
+│      x = self.proj_drop(x)                                                                                           │
+│      return x                                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 9: Scale queries                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  q = q * self.scale                                                                                                  │
+│  # self.scale = 1/√88 ≈ 0.1067                                                                                       │
+│  # q: [batch_size, 16, 257, 88] - scaled queries                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 10: Compute attention scores                                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│  attn = (q @ k.transpose(-2, -1))                                                                                    │
+│  # k.transpose(-2, -1): [batch_size, 16, 257, 88] → [batch_size, 16, 88, 257]                                        │
+│  # q @ k^T: [batch_size, 16, 257, 88] @ [batch_size, 16, 88, 257]                                                    │
+│  # Result: [batch_size, 16, 257, 257] - attention scores for each head                                               │
+│  # Each element [i,j] = similarity between token i and token j                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 14: Softmax normalization                                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  attn = attn.softmax(dim=-1)                                                                                         │
+│  # Applied along last dimension (257)                                                                                │
+│  # Converts scores to probabilities: each row sums to 1.0                                                            │
+│  # Result: [batch_size, 16, 257, 257] - attention probabilities                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 15: Attention dropout                                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  attn = self.attn_drop(attn)                                                                                         │
+│  # Applies dropout to attention weights for regularization                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 17: Apply attention to values                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = (attn @ v).transpose(1, 2).reshape(B, N, -1)                                                                    │
+│  # Step 1: Attention application                                                                                     │
+│  # attn: [batch_size, 16, 257, 257]                                                                                  │
+│  # v: [batch_size, 16, 257, 88]                                                                                      │
+│  # attn @ v: [batch_size, 16, 257, 88] - attended values                                                             │
+│                                                                                                                      │
+│  # Step 2: Transpose heads and sequence                                                                              │
+│  # .transpose(1, 2): [batch_size, 16, 257, 88] → [batch_size, 257, 16, 88]                                           │
+│                                                                                                                      │
+│  # Step 3: Reshape to combine heads                                                                                  │
+│  # .reshape(B, N, -1): [batch_size, 257, 16, 88] → [batch_size, 257, 1408]                                           │
+│  # 1408 = 16 × 88 (concatenate all heads)                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 18-19: Output projection and dropout                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = self.proj(x)      # Linear projection: [batch_size, 257, 1408] → [batch_size, 257, 1408]                        │
+│  x = self.proj_drop(x) # Dropout for regularization                                                                  │
+│  return x              # [batch_size, 257, 1408] - attention output                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                              STEP 8: Complete Block Processing (Back to Block.forward)                               │
+│                                                                                                                      │
+│ First Residual Connection:                                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # x = x + self.drop_path(self.attn(self.norm1(x), rel_pos_bias=rel_pos_bias))                                       │
+│  #     ↑                    ↑                                                                                        │
+│  # original input    attention output                                                                                │
+│                                                                                                                      │
+│  attention_output = self.attn(self.norm1(x), rel_pos_bias=rel_pos_bias)  # From above                                │
+│  dropped_attention = self.drop_path(attention_output)  # Stochastic depth                                            │
+│  x = x + dropped_attention  # Residual connection: [batch_size, 257, 1408]                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Second Residual Branch (MLP):                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # x = x + self.drop_path(self.mlp(self.norm2(x)))                                                                   │
+│                                                                                                                      │
+│  # Step 1: Layer normalization                                                                                       │
+│  normalized_x = self.norm2(x)  # [batch_size, 257, 1408]                                                             │
+│                                                                                                                      │
+│  # Step 2: MLP processing                                                                                            │
+│  mlp_output = self.mlp(normalized_x)  # → Mlp.forward()                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                         STEP 9: MLP Processing (Mlp.forward)                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Mlp.forward (from grep output)                                                                                    │
+│  def forward(self, x):                                                                                               │
+│      x = self.fc1(x)    # Linear: 1408 → 6144 (expansion)                                                            │
+│      x = self.act(x)    # GELU activation                                                                            │
+│      x = self.fc2(x)    # Linear: 6144 → 1408 (compression)                                                          │
+│      x = self.drop(x)   # Dropout                                                                                    │
+│      return x                                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 1: First linear layer (expansion)                                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = self.fc1(x)                                                                                                     │
+│  # Input: [batch_size, 257, 1408]                                                                                    │
+│  # self.fc1: Linear(1408, 6144) - expansion by factor 4.3637                                                         │
+│  # Output: [batch_size, 257, 6144]                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 2: GELU activation                                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = self.act(x)                                                                                                     │
+│  # GELU(x) = x * Φ(x) where Φ is standard normal CDF                                                                 │
+│  # Applied element-wise to [batch_size, 257, 6144]                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 3: Second linear layer (compression)                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = self.fc2(x)                                                                                                     │
+│  # Input: [batch_size, 257, 6144]                                                                                    │
+│  # self.fc2: Linear(6144, 1408) - back to original dimension                                                         │
+│  # Output: [batch_size, 257, 1408]                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 4: Dropout and return                                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = self.drop(x)  # Dropout for regularization                                                                      │
+│  return x          # [batch_size, 257, 1408]                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Complete Second Residual Connection:                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Back in Block.forward:                                                                                            │
+│  mlp_output = self.mlp(self.norm2(x))  # From above                                                                  │
+│  dropped_mlp = self.drop_path(mlp_output)  # Stochastic depth                                                        │
+│  x = x + dropped_mlp  # Second residual connection                                                                   │
+│  return x  # [batch_size, 257, 1408] - complete block output                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                        STEP 10: Complete 39-Layer Processing                                         │
+│                                                                                                                      │
+│ Back to Line 334-338 in forward_features:                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # This process repeats 39 times (once for each transformer block)                                                   │
+│  for blk in self.blocks:  # 39 iterations                                                                            │
+│      x = blk(x, rel_pos_bias)  # Each block processes [batch_size, 257, 1408]                                        │
+│                                                                                                                      │
+│  # After 39 blocks: x = [batch_size, 257, 1408] - deeply processed features                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                            STEP 11: Return Final Features                                            │
+│                                                                                                                      │
+│ Line 339 in forward_features:                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  return x  # [batch_size, 257, 1408] - final vision features                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Back to Line 349 in VisionTransformer.forward:                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  x = self.forward_features(x)  # [batch_size, 257, 1408]                                                             │
+│  return x  # Return to mini_gpt4.py                                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                 STEP 12: Layer Normalization (Back in mini_gpt4.py)                                  │
+│                                                                                                                      │
+│ Line 159 in mini_gpt4.py:                                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  image_embeds = self.ln_vision(self.visual_encoder(image)).to(device)                                                │
+│  #                    ↑              ↑                                                                               │
+│  #               LayerNorm    Vision features from above                                                             │
+│                                                                                                                      │
+│  # self.visual_encoder(image) returns [batch_size, 257, 1408]                                                        │
+│  # self.ln_vision: LayerNorm(1408) - final normalization                                                             │
+│  # Result: [batch_size, 257, 1408] - normalized image embeddings                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                          🎯 COMPLETE IMAGE ENCODING SUMMARY                                          │
+│                                                                                                                      │
+│                                            Input → Output Transformation                                             │
+│                                                                                                                      │
+│  • Input: Preprocessed X-ray [batch_size, 3, 224, 224]                                                               │
+│  • Output: Image embeddings [batch_size, 257, 1408]                                                                  │
+│                                                                                                                      │
+│                                                 Key Processing Steps                                                 │
+│                                                                                                                      │
+│  1 Patch Embedding: 224×224 → 256 patches of 14×14 → 256×1408 embeddings                                             │
+│  2 Add CLS Token: Prepend classification token → 257×1408                                                            │
+│  3 Position Encoding: Add learnable position embeddings                                                              │
+│  4 39 Transformer Blocks: Deep self-attention processing                                                             │
+│  5 Layer Normalization: Final normalization                                                                          │
+│                                                                                                                      │
+│                                             Computational Flow Per Block                                             │
+│                                                                                                                      │
+│  1 LayerNorm → Multi-Head Attention → Residual                                                                       │
+│  2 LayerNorm → MLP → Residual                                                                                        │
+│  3 Stochastic Depth applied to both branches                                                                         │
+│                                                                                                                      │
+│                                                     Final Result                                                     │
+│                                                                                                                      │
+│  • CLS Token: [batch_size, 1, 1408] - Global image representation                                                    │
+│  • Patch Tokens: [batch_size, 256, 1408] - Local spatial features                                                    │
+│  • Total: [batch_size, 257, 1408] - Rich visual features ready for Q-Former                                          │
+│                                                                                                                      │
+│ This detailed trace shows how raw X-ray images are systematically transformed through 39 layers of sophisticated     │
+│ attention mechanisms to produce rich, contextualized visual representations for medical report generation.           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────
