@@ -1,0 +1,264 @@
+│ Perfect! Now I'll provide a comprehensive explanation of how text encoding happens and which strategy is used for    │
+│ the text encoder only in XrayGPT.                                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│                          Text Encoding Strategy in XrayGPT: LLaMA Decoder-Only Architecture                          │
+│                                                                                                                      │
+│ XrayGPT uses LLaMA (Large Language Model Meta AI) as its text encoder, which employs a decoder-only transformer      │
+│ architecture with specific encoding strategies.                                                                      │
+│                                                                                                                      │
+│                                        1. Text Encoder Architecture Overview                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 426-428 in modeling_llama.py                                                                                 │
+│  self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)                           │
+│  self.layers = nn.ModuleList([LlamaDecoderLayer(config) for _ in range(config.num_hidden_layers)])                   │
+│  self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Text Encoder Strategy: Decoder-Only Transformer                                                                      │
+│                                                                                                                      │
+│  • Architecture: 32 decoder layers (for LLaMA-7B)                                                                    │
+│  • Hidden Size: 4096 dimensions                                                                                      │
+│  • Vocabulary: ~32,000 tokens                                                                                        │
+│  • Strategy: Causal autoregressive encoding                                                                          │
+│                                                                                                                      │
+│                                              2. Text Embedding Strategy                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 496-497 in modeling_llama.py (LlamaModel.forward)                                                            │
+│  if inputs_embeds is None:                                                                                           │
+│      inputs_embeds = self.embed_tokens(input_ids)                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Embedding Strategy: Learned Lookup Table                                                                             │
+│                                                                                                                      │
+│  • self.embed_tokens: nn.Embedding(vocab_size=32000, hidden_size=4096)                                               │
+│  • Process: Token ID → Dense 4096-dimensional vector                                                                 │
+│  • Strategy: Direct lookup from learned embedding matrix                                                             │
+│                                                                                                                      │
+│ Example:                                                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Token IDs: [1939, 1274, 1082, 2827]  # "No acute findings"                                                        │
+│  # ↓ embed_tokens lookup ↓                                                                                           │
+│  # Embeddings: [[0.1, -0.3, 0.8, ...],    # 4096-dim vector for token 1939                                           │
+│  #              [0.5, 0.2, -0.1, ...],    # 4096-dim vector for token 1274                                           │
+│  #              [-0.2, 0.9, 0.4, ...],    # 4096-dim vector for token 1082                                           │
+│  #              [0.7, -0.1, 0.3, ...]]    # 4096-dim vector for token 2827                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                            3. Position Encoding Strategy                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 509-516 in modeling_llama.py                                                                                 │
+│  if position_ids is None:                                                                                            │
+│      device = input_ids.device if input_ids is not None else inputs_embeds.device                                    │
+│      position_ids = torch.arange(                                                                                    │
+│          past_key_values_length, seq_length + past_key_values_length, dtype=torch.long, device=device                │
+│      )                                                                                                               │
+│      position_ids = position_ids.unsqueeze(0).view(-1, seq_length)                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Position Encoding Strategy: Rotary Position Embedding (RoPE)                                                         │
+│                                                                                                                      │
+│  • Strategy: Rotary Position Embedding (not additive like BERT)                                                      │
+│  • Advantage: Better handling of relative positions                                                                  │
+│  • Implementation: Applied during attention computation                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 115-122 in modeling_llama.py (apply_rotary_pos_emb)                                                          │
+│  def apply_rotary_pos_emb(q, k, cos, sin, position_ids):                                                             │
+│      q_embed = (q * cos) + (rotate_half(q) * sin)                                                                    │
+│      k_embed = (k * cos) + (rotate_half(k) * sin)                                                                    │
+│      return q_embed, k_embed                                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ RoPE Strategy:                                                                                                       │
+│                                                                                                                      │
+│  • Rotates query and key vectors based on position                                                                   │
+│  • Preserves relative position information better than absolute positions                                            │
+│  • Applied during attention computation, not as additive embeddings                                                  │
+│                                                                                                                      │
+│                                          4. Causal Attention Mask Strategy                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 24-38 in modeling_llama.py (_make_causal_mask)                                                               │
+│  def _make_causal_mask(input_ids_shape, dtype, device, past_key_values_length=0):                                    │
+│      bsz, tgt_len = input_ids_shape                                                                                  │
+│      mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)       │
+│      mask_cond = torch.arange(mask.size(-1), device=device)                                                          │
+│      mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)                                        │
+│      return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Causal Masking Strategy: Lower Triangular Mask                                                                       │
+│                                                                                                                      │
+│  • Purpose: Prevents attention to future tokens                                                                      │
+│  • Strategy: Autoregressive encoding - each token can only see previous tokens                                       │
+│  • Implementation: Fills upper triangle with -inf values                                                             │
+│                                                                                                                      │
+│ Mask Example:                                                                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # For sequence length 4: ["No", "acute", "findings", "###"]                                                         │
+│  # Attention mask (0 = can attend, -inf = cannot attend):                                                            │
+│  # Token 0 "No":       [0,   -inf, -inf, -inf]  # Can only see itself                                                │
+│  # Token 1 "acute":    [0,   0,    -inf, -inf]  # Can see "No" and itself                                            │
+│  # Token 2 "findings": [0,   0,    0,    -inf]  # Can see "No", "acute", itself                                      │
+│  # Token 3 "###":      [0,   0,    0,    0   ]  # Can see all previous tokens                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                         5. Layer-wise Text Encoding Strategy                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 233-244 in modeling_llama.py (LlamaDecoderLayer)                                                             │
+│  class LlamaDecoderLayer(nn.Module):                                                                                 │
+│      def __init__(self, config: LlamaConfig):                                                                        │
+│          self.self_attn = LlamaAttention(config=config)                                                              │
+│          self.mlp = LlamaMLP(...)                                                                                    │
+│          self.input_layernorm = LlamaRMSNorm(...)                                                                    │
+│          self.post_attention_layernorm = LlamaRMSNorm(...)                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Layer Strategy: Pre-Norm Architecture                                                                                │
+│                                                                                                                      │
+│  • Normalization: RMSNorm instead of LayerNorm (more stable)                                                         │
+│  • Architecture: Pre-normalization (norm before attention/MLP)                                                       │
+│  • Residual Connections: Skip connections around attention and MLP                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 269-285 in modeling_llama.py (LlamaDecoderLayer.forward)                                                     │
+│  residual = hidden_states                                                                                            │
+│  hidden_states = self.input_layernorm(hidden_states)  # Pre-norm                                                     │
+│                                                                                                                      │
+│  # Self Attention                                                                                                    │
+│  hidden_states, self_attn_weights, present_key_value = self.self_attn(...)                                           │
+│  hidden_states = residual + hidden_states  # Residual connection                                                     │
+│                                                                                                                      │
+│  residual = hidden_states                                                                                            │
+│  hidden_states = self.post_attention_layernorm(hidden_states)  # Pre-norm                                            │
+│  hidden_states = self.mlp(hidden_states)  # Feed-forward                                                             │
+│  hidden_states = residual + hidden_states  # Residual connection                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                        6. Multi-Head Self-Attention Strategy                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 142-149 in modeling_llama.py (LlamaAttention)                                                                │
+│  class LlamaAttention(nn.Module):                                                                                    │
+│      def __init__(self, config: LlamaConfig):                                                                        │
+│          self.hidden_size = config.hidden_size  # 4096                                                               │
+│          self.num_heads = config.num_attention_heads  # 32                                                           │
+│          self.head_dim = self.hidden_size // self.num_heads  # 128                                                   │
+│          self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)                       │
+│          self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)                       │
+│          self.v_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Multi-Head Attention Strategy:                                                                                       │
+│                                                                                                                      │
+│  • Heads: 32 attention heads                                                                                         │
+│  • Head Dimension: 128 (4096 / 32)                                                                                   │
+│  • Strategy: Parallel attention across multiple subspaces                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 213-214 in modeling_llama.py                                                                                 │
+│  attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)              │
+│  attn_output = torch.matmul(attn_weights, value_states)                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Attention Computation:                                                                                               │
+│                                                                                                                      │
+│  1 Query, Key, Value: Linear projections of input                                                                    │
+│  2 Attention Scores: Q × K^T / √d_k                                                                                  │
+│  3 Causal Masking: Apply lower triangular mask                                                                       │
+│  4 Softmax: Normalize attention weights                                                                              │
+│  5 Weighted Sum: Attention_weights × Values                                                                          │
+│                                                                                                                      │
+│                                           7. Feed-Forward Network Strategy                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 125-139 in modeling_llama.py (LlamaMLP)                                                                      │
+│  class LlamaMLP(nn.Module):                                                                                          │
+│      def __init__(self, hidden_size, intermediate_size, hidden_act):                                                 │
+│          self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)  # 4096 → 11008                      │
+│          self.down_proj = nn.Linear(intermediate_size, hidden_size, bias=False)  # 11008 → 4096                      │
+│          self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)    # 4096 → 11008                      │
+│          self.act_fn = ACT2FN[hidden_act]  # SwiGLU activation                                                       │
+│                                                                                                                      │
+│      def forward(self, x):                                                                                           │
+│          return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Feed-Forward Strategy: SwiGLU Architecture                                                                           │
+│                                                                                                                      │
+│  • Activation: SwiGLU (more efficient than ReLU)                                                                     │
+│  • Gating: Uses gating mechanism for better information flow                                                         │
+│  • Expansion: 4096 → 11008 → 4096 (2.7x expansion ratio)                                                             │
+│                                                                                                                      │
+│ SwiGLU Formula: SwiGLU(x) = Swish(W₁x) ⊙ (W₂x)                                                                       │
+│                                                                                                                      │
+│                                            8. Complete Text Encoding Flow                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 527-581 in modeling_llama.py (LlamaModel.forward)                                                            │
+│  hidden_states = inputs_embeds  # Start with embeddings                                                              │
+│                                                                                                                      │
+│  # Process through 32 decoder layers                                                                                 │
+│  for decoder_layer in self.layers:                                                                                   │
+│      layer_outputs = decoder_layer(                                                                                  │
+│          hidden_states,                                                                                              │
+│          attention_mask=attention_mask,                                                                              │
+│          position_ids=position_ids,                                                                                  │
+│          past_key_value=past_key_value,                                                                              │
+│          output_attentions=output_attentions,                                                                        │
+│          use_cache=use_cache,                                                                                        │
+│      )                                                                                                               │
+│      hidden_states = layer_outputs[0]                                                                                │
+│                                                                                                                      │
+│  hidden_states = self.norm(hidden_states)  # Final RMSNorm                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Complete Encoding Process:                                                                                           │
+│                                                                                                                      │
+│  1 Token Embedding: Token IDs → Dense embeddings                                                                     │
+│  2 Position Encoding: Apply RoPE during attention                                                                    │
+│  3 32 Decoder Layers: Each with self-attention + MLP                                                                 │
+│  4 Final Normalization: RMSNorm on output                                                                            │
+│  5 Output: Contextualized text representations                                                                       │
+│                                                                                                                      │
+│                                          9. Text Encoding Strategy Summary                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│   Component           Strategy                           Implementation                                              │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                               │
+│   Architecture        Decoder-only Transformer           32 LlamaDecoderLayer                                        │
+│   Embedding           Learned lookup table               nn.Embedding(32000, 4096)                                   │
+│   Position Encoding   Rotary Position Embedding (RoPE)   Applied during attention                                    │
+│   Attention Mask      Causal (lower triangular)          Prevents future token access                                │
+│   Normalization       RMSNorm (pre-norm)                 More stable than LayerNorm                                  │
+│   Activation          SwiGLU                             Gated activation function                                   │
+│   Attention           Multi-head self-attention          32 heads, 128 dim each                                      │
+│   Training            Autoregressive                     Next token prediction                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                     10. Key Differences from Encoder-Only Models                                     │
+│                                                                                                                      │
+│ LLaMA (Decoder-Only) vs BERT (Encoder-Only):                                                                         │
+│                                                                                                                      │
+│  • Attention: Causal vs Bidirectional                                                                                │
+│  • Training: Autoregressive vs Masked Language Modeling                                                              │
+│  • Position: RoPE vs Learned absolute positions                                                                      │
+│  • Normalization: RMSNorm vs LayerNorm                                                                               │
+│  • Activation: SwiGLU vs GELU                                                                                        │
+│                                                                                                                      │
+│ Why Decoder-Only for XrayGPT:                                                                                        │
+│                                                                                                                      │
+│  1 Generation: Can generate medical reports autoregressively                                                         │
+│  2 Flexibility: Can handle both understanding and generation                                                         │
+│  3 Efficiency: Single model for encoding and decoding                                                                │
+│  4 Scalability: Better scaling properties for large models                                                           │
+│                                                                                                                      │
+│ This decoder-only strategy allows XrayGPT to both encode text context and generate medical reports in a unified      │
+│ framework, making it ideal for the medical report generation task. 
