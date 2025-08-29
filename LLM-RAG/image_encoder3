@@ -1,0 +1,480 @@
+Perfect! Now I'll provide extremely detailed information about the image encoding process with mathematical          │
+│ formulations, exact tensor operations, memory layouts, and computational complexity analysis.                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│                          Ultra-Detailed Image Encoding Analysis with Mathematical Precision                          │
+│                                                                                                                      │
+│                                        🔍 DETAILED MATHEMATICAL FORMULATIONS                                         │
+│                                                                                                                      │
+│ Let me break down every mathematical operation with exact formulas and tensor transformations.                       │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                   PART 1: PATCH EMBEDDING - MATHEMATICAL DEEP DIVE                                   │
+│                                                                                                                      │
+│                               Convolutional Patch Extraction (Line 202 in eva_vit.py)                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 202: x = self.proj(x).flatten(2).transpose(1, 2)                                                             │
+│  # self.proj = nn.Conv2d(3, 1408, kernel_size=14, stride=14)                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Mathematical Formula for Convolution:                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # For each output position (i, j) and channel c:                                                                    │
+│  # output[b, c, i, j] = Σ Σ Σ input[b, k, i*stride + m, j*stride + n] * weight[c, k, m, n] + bias[c]                 │
+│  #                      k m n                                                                                        │
+│  # Where:                                                                                                            │
+│  # - b: batch index                                                                                                  │
+│  # - c: output channel (0 to 1407)                                                                                   │
+│  # - k: input channel (0 to 2 for RGB)                                                                               │
+│  # - m, n: kernel spatial indices (0 to 13 for 14×14 kernel)                                                         │
+│  # - stride = 14 (non-overlapping patches)                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Detailed Tensor Operations:                                                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Input tensor: x = [batch_size, 3, 224, 224]                                                                       │
+│  # Example values: batch_size=2, so x.shape = [2, 3, 224, 224]                                                       │
+│                                                                                                                      │
+│  # Step 1: Convolution operation                                                                                     │
+│  # Weight tensor: [1408, 3, 14, 14] = 1408 * 3 * 14 * 14 = 829,632 parameters                                        │
+│  # Bias tensor: [1408] (but bias=False, so no bias)                                                                  │
+│                                                                                                                      │
+│  # Convolution computation for each patch:                                                                           │
+│  # Patch (0,0): input[:, :, 0:14, 0:14] → output[:, :, 0, 0]                                                         │
+│  # Patch (0,1): input[:, :, 0:14, 14:28] → output[:, :, 0, 1]                                                        │
+│  # ...                                                                                                               │
+│  # Patch (15,15): input[:, :, 210:224, 210:224] → output[:, :, 15, 15]                                               │
+│                                                                                                                      │
+│  # Output after convolution: [2, 1408, 16, 16]                                                                       │
+│  # 16 = 224/14 (number of patches per dimension)                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Memory Layout Analysis:                                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Input memory: 2 * 3 * 224 * 224 * 4 bytes (float32) = 1,204,224 bytes ≈ 1.2 MB                                    │
+│  # Weight memory: 1408 * 3 * 14 * 14 * 4 bytes = 3,318,528 bytes ≈ 3.3 MB                                            │
+│  # Output memory: 2 * 1408 * 16 * 16 * 4 bytes = 2,883,584 bytes ≈ 2.9 MB                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step 2: Flatten Operation                                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # .flatten(2): Flattens dimensions 2 and onwards                                                                    │
+│  # Input: [2, 1408, 16, 16]                                                                                          │
+│  # Mathematical operation: reshape(2, 1408, 16*16)                                                                   │
+│  # Output: [2, 1408, 256]                                                                                            │
+│                                                                                                                      │
+│  # Memory layout change:                                                                                             │
+│  # Before: tensor[b][c][h][w] = memory[b*1408*16*16 + c*16*16 + h*16 + w]                                            │
+│  # After:  tensor[b][c][p] = memory[b*1408*256 + c*256 + p]                                                          │
+│  # Where p = h*16 + w (patch index)                                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step 3: Transpose Operation                                                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # .transpose(1, 2): Swaps dimensions 1 and 2                                                                        │
+│  # Input: [2, 1408, 256]                                                                                             │
+│  # Output: [2, 256, 1408]                                                                                            │
+│                                                                                                                      │
+│  # Memory layout change (requires data copying):                                                                     │
+│  # Before: tensor[b][c][p] = memory[b*1408*256 + c*256 + p]                                                          │
+│  # After:  tensor[b][p][c] = memory[b*256*1408 + p*1408 + c]                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                 PART 2: POSITION EMBEDDING - MATHEMATICAL PRECISION                                  │
+│                                                                                                                      │
+│                                          CLS Token Addition (Line 327-328)                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 327: cls_tokens = self.cls_token.expand(batch_size, -1, -1)                                                  │
+│  # Line 328: x = torch.cat((cls_tokens, x), dim=1)                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Mathematical Operations:                                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # self.cls_token: [1, 1, 1408] - learnable parameter                                                                │
+│  # Expansion operation:                                                                                              │
+│  # cls_tokens[b, 0, c] = self.cls_token[0, 0, c] for all b ∈ [0, batch_size-1]                                       │
+│  # Result: [batch_size, 1, 1408]                                                                                     │
+│                                                                                                                      │
+│  # Concatenation operation:                                                                                          │
+│  # output[b, 0, c] = cls_tokens[b, 0, c]           # CLS token                                                       │
+│  # output[b, i+1, c] = x[b, i, c] for i ∈ [0, 255] # Patch tokens                                                    │
+│  # Result: [batch_size, 257, 1408] where 257 = 1 + 256                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                      Position Embedding Addition (Line 329-330)                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 329-330: x = x + self.pos_embed                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Mathematical Formula:                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Broadcasting addition:                                                                                            │
+│  # self.pos_embed: [1, 257, 1408] - learnable position embeddings                                                    │
+│  # x: [batch_size, 257, 1408] - tokens with CLS                                                                      │
+│                                                                                                                      │
+│  # For each position:                                                                                                │
+│  # output[b, i, c] = x[b, i, c] + self.pos_embed[0, i, c]                                                            │
+│  # Where:                                                                                                            │
+│  # - b ∈ [0, batch_size-1]                                                                                           │
+│  # - i ∈ [0, 256] (0=CLS, 1-256=patches)                                                                             │
+│  # - c ∈ [0, 1407] (embedding dimensions)                                                                            │
+│                                                                                                                      │
+│  # Each token gets unique position information:                                                                      │
+│  # pos_embed[0, 0, :] → CLS position encoding                                                                        │
+│  # pos_embed[0, 1, :] → Patch (0,0) position encoding                                                                │
+│  # pos_embed[0, 2, :] → Patch (0,1) position encoding                                                                │
+│  # ...                                                                                                               │
+│  # pos_embed[0, 256, :] → Patch (15,15) position encoding                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                PART 3: MULTI-HEAD ATTENTION - MATHEMATICAL DEEP DIVE                                 │
+│                                                                                                                      │
+│                                         Attention Configuration (EVA-CLIP-G)                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # From grep output and eva_vit.py:                                                                                  │
+│  # dim = 1408 (embedding dimension)                                                                                  │
+│  # num_heads = 16 (number of attention heads)                                                                        │
+│  # head_dim = 1408 // 16 = 88 (dimension per head)                                                                   │
+│  # all_head_dim = 88 * 16 = 1408                                                                                     │
+│  # scale = 1/√88 ≈ 0.10671                                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                         QKV Projection Mathematical Analysis                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line in Attention.forward: qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Mathematical Formula:                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Linear transformation: Y = XW^T + b                                                                               │
+│  # X: [batch_size, 257, 1408] - input tokens                                                                         │
+│  # W: [4224, 1408] - weight matrix where 4224 = 1408 * 3 (Q, K, V)                                                   │
+│  # b: None (no bias)                                                                                                 │
+│                                                                                                                      │
+│  # Matrix multiplication:                                                                                            │
+│  # For each batch b, sequence position i, and output dimension j:                                                    │
+│  # qkv[b, i, j] = Σ(k=0 to 1407) x[b, i, k] * weight[j, k]                                                           │
+│                                                                                                                      │
+│  # Output: [batch_size, 257, 4224]                                                                                   │
+│  # First 1408 dims: Query projections                                                                                │
+│  # Next 1408 dims: Key projections                                                                                   │
+│  # Last 1408 dims: Value projections                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                            Reshape and Permute Operations                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line: qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step-by-Step Mathematical Transformation:                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Input: qkv = [batch_size, 257, 4224]                                                                              │
+│                                                                                                                      │
+│  # Step 1: Reshape to separate Q, K, V and heads                                                                     │
+│  # .reshape(B, N, 3, self.num_heads, -1)                                                                             │
+│  # B=batch_size, N=257, num_heads=16, -1=88 (head_dim)                                                               │
+│  # Result: [batch_size, 257, 3, 16, 88]                                                                              │
+│                                                                                                                      │
+│  # Memory layout interpretation:                                                                                     │
+│  # qkv[b, i, 0, h, d] = Query for batch b, position i, head h, dimension d                                           │
+│  # qkv[b, i, 1, h, d] = Key for batch b, position i, head h, dimension d                                             │
+│  # qkv[b, i, 2, h, d] = Value for batch b, position i, head h, dimension d                                           │
+│                                                                                                                      │
+│  # Step 2: Permute dimensions for efficient computation                                                              │
+│  # .permute(2, 0, 3, 1, 4): [batch_size, 257, 3, 16, 88] → [3, batch_size, 16, 257, 88]                              │
+│  # New layout: [qkv_type, batch, head, sequence, head_dim]                                                           │
+│                                                                                                                      │
+│  # Step 3: Split into Q, K, V                                                                                        │
+│  # q = qkv[0] → [batch_size, 16, 257, 88]                                                                            │
+│  # k = qkv[1] → [batch_size, 16, 257, 88]                                                                            │
+│  # v = qkv[2] → [batch_size, 16, 257, 88]                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                             Attention Score Computation                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line: q = q * self.scale                                                                                          │
+│  # Line: attn = (q @ k.transpose(-2, -1))                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Mathematical Formulation:                                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Step 1: Scale queries                                                                                             │
+│  # q_scaled[b, h, i, d] = q[b, h, i, d] * scale                                                                      │
+│  # scale = 1/√88 ≈ 0.10671                                                                                           │
+│                                                                                                                      │
+│  # Step 2: Transpose keys                                                                                            │
+│  # k_transposed = k.transpose(-2, -1)                                                                                │
+│  # [batch_size, 16, 257, 88] → [batch_size, 16, 88, 257]                                                             │
+│                                                                                                                      │
+│  # Step 3: Compute attention scores (Q·K^T)                                                                          │
+│  # attn[b, h, i, j] = Σ(d=0 to 87) q_scaled[b, h, i, d] * k_transposed[b, h, d, j]                                   │
+│  # Result: [batch_size, 16, 257, 257]                                                                                │
+│                                                                                                                      │
+│  # Interpretation:                                                                                                   │
+│  # attn[b, h, i, j] = similarity between token i and token j for head h in batch b                                   │
+│  # Higher values = stronger attention between tokens                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Attention Pattern Analysis:                                                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # For CLS token (position 0):                                                                                       │
+│  # attn[b, h, 0, :] = attention weights from CLS to all tokens (including itself)                                    │
+│                                                                                                                      │
+│  # For patch token at position (r, c) → linear index p = r*16 + c + 1:                                               │
+│  # attn[b, h, p, :] = attention weights from patch (r,c) to all tokens                                               │
+│                                                                                                                      │
+│  # Self-attention allows each token to attend to all other tokens:                                                   │
+│  # - CLS can attend to all patches (global context)                                                                  │
+│  # - Each patch can attend to all other patches (spatial relationships)                                              │
+│  # - All tokens can attend to CLS (global information aggregation)                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                Softmax Normalization                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line: attn = attn.softmax(dim=-1)                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Mathematical Formula:                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # For each query position i and head h:                                                                             │
+│  # softmax(attn[b, h, i, :]) = exp(attn[b, h, i, j]) / Σ(k=0 to 256) exp(attn[b, h, i, k])                           │
+│                                                                                                                      │
+│  # Properties:                                                                                                       │
+│  # 1. Σ(j=0 to 256) attn_softmax[b, h, i, j] = 1.0 (probabilities sum to 1)                                          │
+│  # 2. attn_softmax[b, h, i, j] ∈ [0, 1] (valid probabilities)                                                        │
+│  # 3. Higher raw scores → higher probabilities after softmax                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                  Value Aggregation                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line: x = (attn @ v).transpose(1, 2).reshape(B, N, -1)                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Mathematical Operations:                                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Step 1: Apply attention to values (weighted sum)                                                                  │
+│  # attended_values[b, h, i, d] = Σ(j=0 to 256) attn[b, h, i, j] * v[b, h, j, d]                                      │
+│  # Result: [batch_size, 16, 257, 88]                                                                                 │
+│                                                                                                                      │
+│  # Interpretation:                                                                                                   │
+│  # For each query position i, compute weighted average of all value vectors                                          │
+│  # Weights determined by attention probabilities                                                                     │
+│                                                                                                                      │
+│  # Step 2: Transpose to bring sequence dimension back                                                                │
+│  # .transpose(1, 2): [batch_size, 16, 257, 88] → [batch_size, 257, 16, 88]                                           │
+│                                                                                                                      │
+│  # Step 3: Reshape to concatenate all heads                                                                          │
+│  # .reshape(B, N, -1): [batch_size, 257, 16, 88] → [batch_size, 257, 1408]                                           │
+│  # 1408 = 16 * 88 (concatenate outputs from all heads)                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                          PART 4: MLP MATHEMATICAL ANALYSIS                                           │
+│                                                                                                                      │
+│                                            MLP Configuration (EVA-CLIP-G)                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # From eva_vit.py configuration:                                                                                    │
+│  # in_features = 1408                                                                                                │
+│  # hidden_features = int(1408 * 4.3637) = 6144                                                                       │
+│  # mlp_ratio = 4.3637 (higher than standard 4.0)                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                      MLP Forward Pass Mathematical Formulation                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 1: x = self.fc1(x)    # 1408 → 6144                                                                          │
+│  # Line 2: x = self.act(x)    # GELU activation                                                                      │
+│  # Line 3: x = self.fc2(x)    # 6144 → 1408                                                                          │
+│  # Line 4: x = self.drop(x)   # Dropout                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Mathematical Formulas:                                                                                               │
+│                                                                                                                      │
+│ Step 1: First Linear Layer                                                                                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # fc1: Linear(1408, 6144)                                                                                           │
+│  # Y₁ = XW₁ᵀ + b₁                                                                                                    │
+│  # X: [batch_size, 257, 1408]                                                                                        │
+│  # W₁: [6144, 1408]                                                                                                  │
+│  # b₁: [6144]                                                                                                        │
+│  # Y₁: [batch_size, 257, 6144]                                                                                       │
+│                                                                                                                      │
+│  # For each element:                                                                                                 │
+│  # y₁[b, i, j] = Σ(k=0 to 1407) x[b, i, k] * w₁[j, k] + b₁[j]                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step 2: GELU Activation                                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # GELU(x) = x * Φ(x) where Φ is standard normal CDF                                                                 │
+│  # Approximation: GELU(x) ≈ 0.5 * x * (1 + tanh(√(2/π) * (x + 0.044715 * x³)))                                       │
+│                                                                                                                      │
+│  # Applied element-wise:                                                                                             │
+│  # y₂[b, i, j] = GELU(y₁[b, i, j])                                                                                   │
+│  # Result: [batch_size, 257, 6144]                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step 3: Second Linear Layer                                                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # fc2: Linear(6144, 1408)                                                                                           │
+│  # Y₃ = Y₂W₂ᵀ + b₂                                                                                                   │
+│  # Y₂: [batch_size, 257, 6144]                                                                                       │
+│  # W₂: [1408, 6144]                                                                                                  │
+│  # b₂: [1408]                                                                                                        │
+│  # Y₃: [batch_size, 257, 1408]                                                                                       │
+│                                                                                                                      │
+│  # For each element:                                                                                                 │
+│  # y₃[b, i, j] = Σ(k=0 to 6143) y₂[b, i, k] * w₂[j, k] + b₂[j]                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                 PART 5: RESIDUAL CONNECTIONS AND LAYER NORMALIZATION                                 │
+│                                                                                                                      │
+│                                       Layer Normalization Mathematical Formula                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # LayerNorm applied before attention and MLP                                                                        │
+│  # Formula: LN(x) = γ * (x - μ) / σ + β                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Detailed Computation:                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # For input x: [batch_size, 257, 1408]                                                                              │
+│  # Compute statistics along last dimension (1408):                                                                   │
+│                                                                                                                      │
+│  # Mean: μ[b, i] = (1/1408) * Σ(j=0 to 1407) x[b, i, j]                                                              │
+│  # Variance: σ²[b, i] = (1/1408) * Σ(j=0 to 1407) (x[b, i, j] - μ[b, i])²                                            │
+│  # Standard deviation: σ[b, i] = √(σ²[b, i] + ε) where ε = 1e-6                                                      │
+│                                                                                                                      │
+│  # Normalized output:                                                                                                │
+│  # ln_out[b, i, j] = γ[j] * (x[b, i, j] - μ[b, i]) / σ[b, i] + β[j]                                                  │
+│                                                                                                                      │
+│  # Where:                                                                                                            │
+│  # γ: [1408] - learnable scale parameters                                                                            │
+│  # β: [1408] - learnable shift parameters                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                      Residual Connection Mathematical Analysis                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Block.forward residual connections:                                                                               │
+│  # x = x + self.drop_path(self.attn(self.norm1(x)))                                                                  │
+│  # x = x + self.drop_path(self.mlp(self.norm2(x)))                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Mathematical Formulation:                                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # First residual (attention):                                                                                       │
+│  # x₁ = x₀ + DropPath(MultiHeadAttention(LayerNorm(x₀)))                                                             │
+│                                                                                                                      │
+│  # Second residual (MLP):                                                                                            │
+│  # x₂ = x₁ + DropPath(MLP(LayerNorm(x₁)))                                                                            │
+│                                                                                                                      │
+│  # Where DropPath implements stochastic depth:                                                                       │
+│  # DropPath(x) = x with probability (1 - drop_prob)                                                                  │
+│  #             = 0 with probability drop_prob (during training)                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                      PART 6: COMPUTATIONAL COMPLEXITY ANALYSIS                                       │
+│                                                                                                                      │
+│                                             Per-Layer Computational Cost                                             │
+│                                                                                                                      │
+│ Attention Complexity:                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # QKV projection: O(N × d²) where N=257, d=1408                                                                     │
+│  # Cost: 257 × 1408² × 3 = 1,307,021,568 operations                                                                  │
+│                                                                                                                      │
+│  # Attention computation: O(N² × d)                                                                                  │
+│  # Cost: 257² × 1408 = 93,025,552 operations                                                                         │
+│                                                                                                                      │
+│  # Output projection: O(N × d²)                                                                                      │
+│  # Cost: 257 × 1408² = 509,007,424 operations                                                                        │
+│                                                                                                                      │
+│  # Total attention: ~1.9 billion operations per layer                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│ MLP Complexity:                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # First linear: O(N × d × h) where h=6144                                                                           │
+│  # Cost: 257 × 1408 × 6144 = 2,223,063,552 operations                                                                │
+│                                                                                                                      │
+│  # Second linear: O(N × h × d)                                                                                       │
+│  # Cost: 257 × 6144 × 1408 = 2,223,063,552 operations                                                                │
+│                                                                                                                      │
+│  # Total MLP: ~4.4 billion operations per layer                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Total Per-Layer Cost:                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Attention + MLP: ~6.3 billion operations per layer                                                                │
+│  # 39 layers: 39 × 6.3B = ~246 billion operations per image                                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                 Memory Requirements                                                  │
+│                                                                                                                      │
+│ Activation Memory:                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Input: [batch_size, 257, 1408] = batch_size × 361,856 × 4 bytes                                                   │
+│  # QKV: [batch_size, 257, 4224] = batch_size × 1,085,568 × 4 bytes                                                   │
+│  # Attention: [batch_size, 16, 257, 257] = batch_size × 1,052,688 × 4 bytes                                          │
+│  # MLP hidden: [batch_size, 257, 6144] = batch_size × 1,579,008 × 4 bytes                                            │
+│                                                                                                                      │
+│  # Peak memory per layer: ~batch_size × 16 MB                                                                        │
+│  # 39 layers with gradient checkpointing: ~batch_size × 32 MB                                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Parameter Memory:                                                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Attention weights: 1408² × 3 + 1408² = 7,929,856 parameters                                                       │
+│  # MLP weights: 1408 × 6144 + 6144 × 1408 = 17,301,504 parameters                                                    │
+│  # LayerNorm: 1408 × 2 × 2 = 5,632 parameters                                                                        │
+│                                                                                                                      │
+│  # Per layer: ~25.2M parameters                                                                                      │
+│  # 39 layers: 39 × 25.2M = ~983M parameters                                                                          │
+│  # Plus embeddings: ~1.4B total parameters for EVA-CLIP-G                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ This ultra-detailed analysis shows the mathematical precision and computational intensity involved in processing     │
+│ each X-ray image through the EVA-CLIP-G vision encoder, demonstrating why this architecture is so effective for      │
+│ capturing rich visual representations.
