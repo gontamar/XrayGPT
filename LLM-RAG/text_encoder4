@@ -1,0 +1,228 @@
+ Perfect! Now I'll provide a detailed line-by-line explanation of text tokenization during training only and how      │
+│ these tokens are passed to the encoder.                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│                               Text Tokenization During Training: Line-by-Line Analysis                               │
+│                                                                                                                      │
+│                                         1. Text Data Loading (Dataset Level)                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 40 in mimic_dataset.py                                                                                       │
+│  caption = ann['caption']                                                                                            │
+│                                                                                                                      │
+│  # Line 42-45 in mimic_dataset.py                                                                                    │
+│  return {                                                                                                            │
+│      "image": image,                                                                                                 │
+│      "caption": caption,                                                                                             │
+│      "image_id": self.img_ids[ann["image_id"]],                                                                      │
+│  }                                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 40: Raw text extraction                                                                                         │
+│                                                                                                                      │
+│  • ann['caption']: Gets raw medical report text from annotation                                                      │
+│  • Example: "No acute cardiopulmonary process. Heart size is normal."                                                │
+│  • Note: This is still raw text, NOT tokens yet                                                                      │
+│                                                                                                                      │
+│ Line 42-45: Returns training sample                                                                                  │
+│                                                                                                                      │
+│  • "caption": caption: Raw text caption (still not tokenized)                                                        │
+│  • This raw text will be tokenized later in the model's forward pass                                                 │
+│                                                                                                                      │
+│                                      2. Text Preprocessing Before Tokenization                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 207-210 in mini_gpt4.py (forward method during training)                                                     │
+│  self.llama_tokenizer.padding_side = "right"                                                                         │
+│                                                                                                                      │
+│  text = [t + self.end_sym for t in samples["caption"]]                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 208: Set padding direction                                                                                      │
+│                                                                                                                      │
+│  • self.llama_tokenizer.padding_side = "right": Configures tokenizer to add padding tokens on the right              │
+│  • Why: For autoregressive training, we want text to flow left-to-right with padding at the end                      │
+│                                                                                                                      │
+│ Line 210: Add end symbol to text                                                                                     │
+│                                                                                                                      │
+│  • samples["caption"]: List of raw medical report texts from batch                                                   │
+│  • self.end_sym: End symbol (usually "###")                                                                          │
+│  • [t + self.end_sym for t in samples["caption"]]: Adds "###" to end of each text                                    │
+│  • Example:                                                                                                          │
+│     • Input: "No acute findings"                                                                                     │
+│     • Output: "No acute findings###"                                                                                 │
+│                                                                                                                      │
+│                                   3. TEXT TOKENIZATION - Where Tokens Are Created                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 211-218 in mini_gpt4.py                                                                                      │
+│  to_regress_tokens = self.llama_tokenizer(                                                                           │
+│      text,                                                                                                           │
+│      return_tensors="pt",                                                                                            │
+│      padding="longest",                                                                                              │
+│      truncation=True,                                                                                                │
+│      max_length=self.max_txt_len,                                                                                    │
+│      add_special_tokens=False                                                                                        │
+│  ).to(image.device)                                                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│ This is where text becomes tokens!                                                                                   │
+│                                                                                                                      │
+│ Line 211: self.llama_tokenizer(text, ...) - TOKENIZATION HAPPENS HERE                                                │
+│                                                                                                                      │
+│  • Input: ["No acute findings###", "Heart size normal###", ...] (list of text strings)                               │
+│  • Process: Each character/word gets converted to numerical token IDs using LLaMA's vocabulary                       │
+│                                                                                                                      │
+│ Line 212: return_tensors="pt" - Return PyTorch tensors                                                               │
+│                                                                                                                      │
+│  • Output format: PyTorch tensor instead of Python lists                                                             │
+│                                                                                                                      │
+│ Line 213: padding="longest" - Pad to longest sequence in batch                                                       │
+│                                                                                                                      │
+│  • Example: If batch has texts of length [8, 12, 6] tokens, all get padded to 12 tokens                              │
+│                                                                                                                      │
+│ Line 214: truncation=True - Cut off text that's too long                                                             │
+│                                                                                                                      │
+│ Line 215: max_length=self.max_txt_len - Maximum text length (usually 160 tokens)                                     │
+│                                                                                                                      │
+│ Line 216: add_special_tokens=False - Don't add [CLS], [SEP] tokens automatically                                     │
+│                                                                                                                      │
+│ Line 217: .to(image.device) - Move token tensors to GPU                                                              │
+│                                                                                                                      │
+│ Tokenization Example:                                                                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Input text: "No acute findings###"                                                                                │
+│  # Tokenizer converts to token IDs: [1939, 1274, 1082, 2827, 4136, 4136, 4136]                                       │
+│  # Each number represents a token in LLaMA's vocabulary                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Result: to_regress_tokens contains:                                                                                  │
+│                                                                                                                      │
+│  • input_ids: Token ID tensor [batch_size, max_seq_len]                                                              │
+│  • attention_mask: Mask tensor [batch_size, max_seq_len] (1=real token, 0=padding)                                   │
+│                                                                                                                      │
+│                                       4. Creating Training Targets from Tokens                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 220-222 in mini_gpt4.py                                                                                      │
+│  targets = to_regress_tokens.input_ids.masked_fill(                                                                  │
+│      to_regress_tokens.input_ids == self.llama_tokenizer.pad_token_id, -100                                          │
+│  )                                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 220: to_regress_tokens.input_ids - Extract token IDs                                                            │
+│                                                                                                                      │
+│  • input_ids: The actual numerical token IDs created by tokenization                                                 │
+│  • Shape: [batch_size, sequence_length]                                                                              │
+│  • Example: [[1939, 1274, 1082, 2827, 4136, 0, 0], [2567, 1345, 8901, 0, 0, 0, 0]]                                   │
+│                                                                                                                      │
+│ Line 221-222: masked_fill(..., -100) - Mask padding tokens                                                           │
+│                                                                                                                      │
+│  • == self.llama_tokenizer.pad_token_id: Find padding tokens (usually token ID 0)                                    │
+│  • masked_fill(..., -100): Replace padding tokens with -100                                                          │
+│  • Why -100: PyTorch ignores -100 labels when calculating loss                                                       │
+│  • Result: [[1939, 1274, 1082, 2827, 4136, -100, -100], [2567, 1345, 8901, -100, -100, -100, -100]]                  │
+│                                                                                                                      │
+│                              5. Converting Token IDs to Embeddings (Passing to Encoder)                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 237 in mini_gpt4.py                                                                                          │
+│  to_regress_embeds = self.llama_model.model.embed_tokens(to_regress_tokens.input_ids)                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 237: TOKEN IDs → EMBEDDINGS (This is passing to encoder!)                                                       │
+│                                                                                                                      │
+│  • to_regress_tokens.input_ids: Token ID tensor [batch_size, seq_len]                                                │
+│  • self.llama_model.model.embed_tokens(...): EMBEDDING LOOKUP TABLE                                                  │
+│     • This is LLaMA's embedding layer (part of the encoder)                                                          │
+│     • Takes token IDs and converts to dense embeddings                                                               │
+│     • Input: [1939, 1274, 1082, 2827, 4136] (token IDs)                                                              │
+│     • Output: [[0.1, -0.3, 0.8, ...], [0.5, 0.2, -0.1, ...], ...] (4096-dim embeddings)                              │
+│  • to_regress_embeds: Dense embedding tensor [batch_size, seq_len, 4096]                                             │
+│                                                                                                                      │
+│                                    6. Preparing Final Input Sequence for Encoder                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 230-234 in mini_gpt4.py                                                                                      │
+│  batch_size = img_embeds.shape[0]                                                                                    │
+│  bos = torch.ones([batch_size, 1],                                                                                   │
+│                   dtype=to_regress_tokens.input_ids.dtype,                                                           │
+│                   device=to_regress_tokens.input_ids.device) * self.llama_tokenizer.bos_token_id                     │
+│  bos_embeds = self.llama_model.model.embed_tokens(bos)                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 232-233: Create BOS (Beginning of Sequence) token                                                               │
+│                                                                                                                      │
+│  • self.llama_tokenizer.bos_token_id: Gets BOS token ID (usually 1)                                                  │
+│  • torch.ones([batch_size, 1]) * bos_token_id: Creates BOS token for each sample in batch                            │
+│                                                                                                                      │
+│ Line 234: Convert BOS token to embedding                                                                             │
+│                                                                                                                      │
+│  • self.llama_model.model.embed_tokens(bos): Converts BOS token ID to embedding                                      │
+│  • Same embedding lookup process as text tokens                                                                      │
+│                                                                                                                      │
+│                                     7. Final Sequence Assembly and Encoder Input                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 238-239 in mini_gpt4.py                                                                                      │
+│  inputs_embeds = torch.cat([bos_embeds, img_embeds, to_regress_embeds], dim=1)                                       │
+│  attention_mask = torch.cat([atts_bos, atts_img, to_regress_tokens.attention_mask], dim=1)                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 238: Concatenate all embeddings                                                                                 │
+│                                                                                                                      │
+│  • bos_embeds: BOS token embedding [batch_size, 1, 4096]                                                             │
+│  • img_embeds: Image token embeddings [batch_size, 32, 4096] (from image encoder)                                    │
+│  • to_regress_embeds: TEXT TOKEN EMBEDDINGS [batch_size, text_len, 4096]                                             │
+│  • torch.cat(..., dim=1): Concatenates along sequence dimension                                                      │
+│  • Final sequence: [BOS] + [32 image tokens] + [text tokens]                                                         │
+│                                                                                                                      │
+│ Line 239: Create attention mask for full sequence                                                                    │
+│                                                                                                                      │
+│  • to_regress_tokens.attention_mask: Attention mask for text tokens (1=real, 0=padding)                              │
+│  • Concatenates masks: [BOS_mask] + [image_mask] + [text_mask]                                                       │
+│                                                                                                                      │
+│                                             8. Passing to LLaMA Encoder                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 241-247 in mini_gpt4.py                                                                                      │
+│  with self.maybe_autocast():                                                                                         │
+│      outputs = self.llama_model(                                                                                     │
+│          inputs_embeds=inputs_embeds,                                                                                │
+│          attention_mask=attention_mask,                                                                              │
+│          return_dict=True,                                                                                           │
+│          labels=targets,                                                                                             │
+│      )                                                                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 242-246: FINAL ENCODER CALL                                                                                     │
+│                                                                                                                      │
+│  • self.llama_model(...): This is the LLaMA transformer encoder/decoder                                              │
+│  • inputs_embeds=inputs_embeds: Text token embeddings are passed here!                                               │
+│     • Contains BOS + image + text embeddings all concatenated                                                        │
+│     • Text tokens are now dense 4096-dimensional vectors                                                             │
+│  • attention_mask=attention_mask: Tells encoder which tokens to attend to                                            │
+│  • labels=targets: Ground truth token IDs for loss calculation                                                       │
+│                                                                                                                      │
+│ Inside LLaMA encoder:                                                                                                │
+│                                                                                                                      │
+│  1 Self-attention layers process the text embeddings                                                                 │
+│  2 Feed-forward layers transform the representations                                                                 │
+│  3 Output layer predicts next token probabilities                                                                    │
+│  4 Loss calculation compares predictions with target token IDs                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                    Complete Text Token Flow Summary for Training                                     │
+│                                                                                                                      │
+│  1 Raw Text: "No acute findings" (from dataset)                                                                      │
+│  2 Add End Symbol: "No acute findings###"                                                                            │
+│  3 Tokenization: [1939, 1274, 1082, 2827, 4136, 4136, 4136] (token IDs)                                              │
+│  4 Embedding Lookup: Token IDs → 4096-dim embeddings via embed_tokens()                                              │
+│  5 Sequence Assembly: [BOS] + [image_tokens] + [text_embeddings]                                                     │
+│  6 Encoder Input: Final embedding sequence passed to llama_model()                                                   │
+│  7 Encoder Processing: LLaMA transformer processes text embeddings                                                   │
+│  8 Loss Calculation: Compare predictions with target token IDs                                                       │
+│                                                                                                                      │
+│ Key Point: Text tokens are created by the LLaMA tokenizer and passed to the encoder as dense embeddings through the  │
+│ embed_tokens() layer, which is the first layer of the LLaMA transformer encoder.
