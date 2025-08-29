@@ -1,0 +1,486 @@
+─ Response ───────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ Perfect! Now I'll provide an extremely detailed, line-by-line analysis of the text encoding process with             │
+│ mathematical formulations, tensor shapes, and deep technical details.                                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                   Ultra-Detailed Text Encoding Analysis in XrayGPT                                   │
+│                                                                                                                      │
+│                                 🔍 DETAILED BREAKDOWN: Every Mathematical Operation                                  │
+│                                                                                                                      │
+│ Let me trace through with concrete examples and exact tensor transformations.                                        │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                     PART 1: INPUT PREPARATION & EMBEDDING LOOKUP                                     │
+│                                                                                                                      │
+│                                                 Example Input Setup                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Example text: "No acute findings in chest X-ray###"                                                               │
+│  # After tokenization: [1939, 1274, 1082, 2827, 297, 521, 342, 29899, 764, 4136, 4136, 4136]                         │
+│  # Batch size: 2, Sequence length: 12, Hidden size: 4096                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                       Line 426: Embedding Table Initialization                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 426 in modeling_llama.py                                                                                     │
+│  self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Detailed Analysis:                                                                                                   │
+│                                                                                                                      │
+│  • config.vocab_size: 32,000 (LLaMA vocabulary size)                                                                 │
+│  • config.hidden_size: 4,096 (embedding dimension)                                                                   │
+│  • self.padding_idx: Token ID for padding (usually 0)                                                                │
+│  • Embedding Matrix Shape: [32000, 4096]                                                                             │
+│  • Total Parameters: 32,000 × 4,096 = 131,072,000 parameters just for embeddings!                                    │
+│                                                                                                                      │
+│                                   Line 497: Embedding Lookup (SKIPPED in XrayGPT)                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 496-497 in modeling_llama.py                                                                                 │
+│  if inputs_embeds is None:                                                                                           │
+│      inputs_embeds = self.embed_tokens(input_ids)  # ← SKIPPED: Already have embeddings                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Why Skipped: XrayGPT provides pre-computed embeddings from mini_gpt4.py                                              │
+│                                                                                                                      │
+│ If it were executed:                                                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Mathematical operation: inputs_embeds = embedding_table[input_ids]                                                │
+│  # Input: input_ids = [2, 12] with values [1939, 1274, 1082, ...]                                                    │
+│  # Output: inputs_embeds = [2, 12, 4096]                                                                             │
+│  #                                                                                                                   │
+│  # For each token ID, lookup corresponding 4096-dim vector:                                                          │
+│  # Token 1939 → embedding_table[1939] = [0.1, -0.3, 0.8, ..., 0.2]  # 4096 values                                    │
+│  # Token 1274 → embedding_table[1274] = [0.5, 0.2, -0.1, ..., -0.4] # 4096 values                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                        PART 2: POSITION ENCODING PREPARATION                                         │
+│                                                                                                                      │
+│                                         Line 511-514: Position ID Generation                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 511-514 in modeling_llama.py                                                                                 │
+│  position_ids = torch.arange(                                                                                        │
+│      past_key_values_length, seq_length + past_key_values_length, dtype=torch.long, device=device                    │
+│  )                                                                                                                   │
+│  position_ids = position_ids.unsqueeze(0).view(-1, seq_length)                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Detailed Execution:                                                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Step-by-step execution:                                                                                           │
+│  # past_key_values_length = 0 (no cached keys during training)                                                       │
+│  # seq_length = 12                                                                                                   │
+│                                                                                                                      │
+│  # Line 511-513: torch.arange(0, 12)                                                                                 │
+│  position_ids = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  # Shape: [12]                                                │
+│                                                                                                                      │
+│  # Line 514: .unsqueeze(0) adds batch dimension                                                                      │
+│  position_ids = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]  # Shape: [1, 12]                                           │
+│                                                                                                                      │
+│  # .view(-1, seq_length) reshapes to match batch size                                                                │
+│  position_ids = [[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],   # Sample 1                                                │
+│                  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]   # Sample 2                                                │
+│  # Final shape: [2, 12]                                                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                        PART 3: CAUSAL ATTENTION MASK CREATION                                        │
+│                                                                                                                      │
+│                                Line 31-33: Causal Mask Generation (_make_causal_mask)                                │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 30-33 in modeling_llama.py                                                                                   │
+│  bsz, tgt_len = input_ids_shape  # bsz=2, tgt_len=12                                                                 │
+│  mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)           │
+│  mask_cond = torch.arange(mask.size(-1), device=device)                                                              │
+│  mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Ultra-Detailed Step-by-Step:                                                                                         │
+│                                                                                                                      │
+│ Step 1 - Line 31: Create base mask filled with -inf                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # torch.finfo(torch.float16).min ≈ -65504.0                                                                         │
+│  mask = torch.full((12, 12), -65504.0)                                                                               │
+│  # Shape: [12, 12], all values = -65504.0                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step 2 - Line 32: Create condition array                                                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│  mask_cond = torch.arange(12)  # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Step 3 - Line 33: Apply causal masking logic                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # mask_cond < (mask_cond + 1).view(12, 1)                                                                           │
+│  # Left side: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]  # Shape: [12]                                                  │
+│  # Right side: [[1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12]]  # Shape: [12, 1]                     │
+│                                                                                                                      │
+│  # Broadcasting comparison creates 12x12 boolean matrix:                                                             │
+│  condition_matrix = [                                                                                                │
+│      [0<1, 1<1, 2<1, 3<1, 4<1, 5<1, 6<1, 7<1, 8<1, 9<1, 10<1, 11<1],  # [T,F,F,F,F,F,F,F,F,F,F,F]                    │
+│      [0<2, 1<2, 2<2, 3<2, 4<2, 5<2, 6<2, 7<2, 8<2, 9<2, 10<2, 11<2],  # [T,T,F,F,F,F,F,F,F,F,F,F]                    │
+│      [0<3, 1<3, 2<3, 3<3, 4<3, 5<3, 6<3, 7<3, 8<3, 9<3, 10<3, 11<3],  # [T,T,T,F,F,F,F,F,F,F,F,F]                    │
+│      # ... continues for all 12 rows                                                                                 │
+│  ]                                                                                                                   │
+│                                                                                                                      │
+│  # masked_fill_(condition, 0) sets True positions to 0                                                               │
+│  # Final causal mask (0 = can attend, -inf = cannot attend):                                                         │
+│  causal_mask = [                                                                                                     │
+│      [    0, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf],  # Token 0                           │
+│      [    0,    0, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf],  # Token 1                           │
+│      [    0,    0,    0, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf],  # Token 2                           │
+│      [    0,    0,    0,    0, -inf, -inf, -inf, -inf, -inf, -inf, -inf, -inf],  # Token 3                           │
+│      # ... lower triangular pattern continues                                                                        │
+│      [    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0],   # Token 11                         │
+│  ]                                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 38: Expand to batch dimensions                                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # mask[None, None, :, :] adds two dimensions: [1, 1, 12, 12]                                                        │
+│  # .expand(bsz, 1, tgt_len, tgt_len) → [2, 1, 12, 12]                                                                │
+│  final_attention_mask = [2, 1, 12, 12]  # Same mask for both samples in batch                                        │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                   PART 4: DECODER LAYER PROCESSING (32 ITERATIONS)                                   │
+│                                                                                                                      │
+│                                              Line 541: Main Layer Loop                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 541 in modeling_llama.py                                                                                     │
+│  for idx, decoder_layer in enumerate(self.layers):  # idx: 0, 1, 2, ..., 31                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Each iteration processes one of 32 LlamaDecoderLayer instances                                                       │
+│                                                                                                                      │
+│                              DETAILED SINGLE LAYER ANALYSIS (LlamaDecoderLayer.forward)                              │
+│                                                                                                                      │
+│                                             🔸 Pre-Attention Processing                                              │
+│                                                                                                                      │
+│ Line 269: Save residual connection                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 269 in modeling_llama.py                                                                                     │
+│  residual = hidden_states  # Shape: [2, 12, 4096]                                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 271: RMSNorm before attention                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 271 in modeling_llama.py                                                                                     │
+│  hidden_states = self.input_layernorm(hidden_states)                                                                 │
+│                                                                                                                      │
+│                                                                                                                      │
+│ RMSNorm Mathematical Detail:                                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # RMSNorm formula: x * rsqrt(mean(x²) + ε) * weight                                                                 │
+│  # Line in LlamaRMSNorm.forward:                                                                                     │
+│  variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)                                            │
+│  hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)                                       │
+│                                                                                                                      │
+│  # Step-by-step for one token's embedding [4096 values]:                                                             │
+│  # 1. Convert to float32: [0.1, -0.3, 0.8, ..., 0.2] → float32                                                       │
+│  # 2. Square each element: [0.01, 0.09, 0.64, ..., 0.04]                                                             │
+│  # 3. Mean across last dimension: sum(squares)/4096 = variance_value                                                 │
+│  # 4. Add epsilon: variance_value + 1e-6 = 0.25000001                                                                │
+│  # 5. Reciprocal square root: 1/sqrt(0.25000001) = 1.9999996                                                         │
+│  # 6. Multiply original: [0.1, -0.3, 0.8, ..., 0.2] * 1.9999996                                                      │
+│  # 7. Element-wise multiply with learned weight parameter                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                     🔸 Multi-Head Self-Attention (Lines 274-281)                                     │
+│                                                                                                                      │
+│ Line 176: Extract dimensions                                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 176 in modeling_llama.py (LlamaAttention.forward)                                                            │
+│  bsz, q_len, _ = hidden_states.size()  # bsz=2, q_len=12, _=4096                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Lines 178-180: Create Query, Key, Value projections                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 178-180 in modeling_llama.py                                                                                 │
+│  query_states = self.q_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)           │
+│  key_states = self.k_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)             │
+│  value_states = self.v_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Detailed Mathematical Breakdown:                                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Configuration:                                                                                                    │
+│  # self.num_heads = 32                                                                                               │
+│  # self.head_dim = 4096 // 32 = 128                                                                                  │
+│  # self.hidden_size = 4096                                                                                           │
+│                                                                                                                      │
+│  # Step 1: Linear projections                                                                                        │
+│  # self.q_proj: nn.Linear(4096, 32 * 128) = nn.Linear(4096, 4096)                                                    │
+│  query_projected = self.q_proj(hidden_states)  # [2, 12, 4096] → [2, 12, 4096]                                       │
+│                                                                                                                      │
+│  # Step 2: Reshape for multi-head attention                                                                          │
+│  query_reshaped = query_projected.view(2, 12, 32, 128)  # [2, 12, 4096] → [2, 12, 32, 128]                           │
+│                                                                                                                      │
+│  # Step 3: Transpose to put heads dimension first                                                                    │
+│  query_states = query_reshaped.transpose(1, 2)  # [2, 12, 32, 128] → [2, 32, 12, 128]                                │
+│                                                                                                                      │
+│  # Same process for keys and values:                                                                                 │
+│  key_states = [2, 32, 12, 128]    # 32 heads, 12 sequence length, 128 dim per head                                   │
+│  value_states = [2, 32, 12, 128]  # 32 heads, 12 sequence length, 128 dim per head                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Lines 185-186: Apply Rotary Position Embedding                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 185-186 in modeling_llama.py                                                                                 │
+│  cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)                                                        │
+│  query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ RoPE Mathematical Detail:                                                                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 115-122 in modeling_llama.py (apply_rotary_pos_emb)                                                          │
+│  def apply_rotary_pos_emb(q, k, cos, sin, position_ids):                                                             │
+│      # q, k shape: [2, 32, 12, 128]                                                                                  │
+│      # cos, sin shape: [1, 1, 12, 128]                                                                               │
+│                                                                                                                      │
+│      # For each position and each dimension pair:                                                                    │
+│      # q_embed = (q * cos) + (rotate_half(q) * sin)                                                                  │
+│      # k_embed = (k * cos) + (rotate_half(k) * sin)                                                                  │
+│                                                                                                                      │
+│      # rotate_half splits last dimension and swaps with negation:                                                    │
+│      # Input: [a, b, c, d, e, f, g, h] (128 dims)                                                                    │
+│      # Split: first_half=[a,b,c,d,...], second_half=[e,f,g,h,...]                                                    │
+│      # Output: [-e, -f, -g, -h, ..., a, b, c, d, ...]                                                                │
+│                                                                                                                      │
+│      return q_embed, k_embed  # Both shape: [2, 32, 12, 128]                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 196: Compute attention scores                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 196 in modeling_llama.py                                                                                     │
+│  attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Detailed Attention Computation:                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Step 1: Transpose keys for matrix multiplication                                                                  │
+│  key_states_transposed = key_states.transpose(2, 3)  # [2, 32, 12, 128] → [2, 32, 128, 12]                           │
+│                                                                                                                      │
+│  # Step 2: Matrix multiplication (Q × K^T)                                                                           │
+│  # query_states: [2, 32, 12, 128]                                                                                    │
+│  # key_states_transposed: [2, 32, 128, 12]                                                                           │
+│  attn_scores = torch.matmul(query_states, key_states_transposed)  # [2, 32, 12, 12]                                  │
+│                                                                                                                      │
+│  # Step 3: Scale by sqrt(head_dim)                                                                                   │
+│  scale_factor = math.sqrt(128) = 11.31                                                                               │
+│  attn_weights = attn_scores / 11.31  # [2, 32, 12, 12]                                                               │
+│                                                                                                                      │
+│  # Result: For each head, 12x12 attention matrix showing how much each token attends to others                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Lines 209-210: Apply causal mask                                                                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 209-210 in modeling_llama.py                                                                                 │
+│  attn_weights = attn_weights + attention_mask                                                                        │
+│  attn_weights = torch.max(attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min))                           │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Masking Detail:                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # attention_mask shape: [2, 1, 12, 12] (causal mask from earlier)                                                   │
+│  # attn_weights shape: [2, 32, 12, 12]                                                                               │
+│                                                                                                                      │
+│  # Broadcasting addition:                                                                                            │
+│  # attention_mask[2, 1, 12, 12] + attn_weights[2, 32, 12, 12] → [2, 32, 12, 12]                                      │
+│                                                                                                                      │
+│  # Effect: Adds -inf to upper triangular positions, making them impossible to attend to                              │
+│  # Example for one head:                                                                                             │
+│  masked_attention = [                                                                                                │
+│      [score_00,     -inf,     -inf,     -inf, ...],  # Token 0 can only see itself                                   │
+│      [score_10, score_11,     -inf,     -inf, ...],  # Token 1 can see tokens 0,1                                    │
+│      [score_20, score_21, score_22,     -inf, ...],  # Token 2 can see tokens 0,1,2                                  │
+│      # ... causal pattern continues                                                                                  │
+│  ]                                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 213: Softmax normalization                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 213 in modeling_llama.py                                                                                     │
+│  attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Softmax Mathematical Detail:                                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Applied along last dimension (dim=-1), for each query position:                                                   │
+│  # Input: [score_0, score_1, score_2, -inf, -inf, ...]                                                               │
+│  # Softmax: exp(x_i) / sum(exp(x_j)) for all j                                                                       │
+│                                                                                                                      │
+│  # Example for token 2 (can see tokens 0,1,2):                                                                       │
+│  raw_scores = [2.1, 1.8, 3.2, -inf, -inf, ...]                                                                       │
+│  exp_scores = [exp(2.1), exp(1.8), exp(3.2), exp(-inf), exp(-inf), ...]                                              │
+│             = [8.17, 6.05, 24.53, 0.0, 0.0, ...]                                                                     │
+│  sum_exp = 8.17 + 6.05 + 24.53 = 38.75                                                                               │
+│  probabilities = [8.17/38.75, 6.05/38.75, 24.53/38.75, 0.0, 0.0, ...]                                                │
+│                = [0.21, 0.16, 0.63, 0.0, 0.0, ...]  # Sums to 1.0                                                    │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Line 214: Apply attention to values                                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 214 in modeling_llama.py                                                                                     │
+│  attn_output = torch.matmul(attn_weights, value_states)                                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Attention Application:                                                                                               │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # attn_weights: [2, 32, 12, 12] - attention probabilities                                                           │
+│  # value_states: [2, 32, 12, 128] - value vectors                                                                    │
+│  # Result: [2, 32, 12, 128] - attended values                                                                        │
+│                                                                                                                      │
+│  # For each query position, compute weighted sum of all value vectors:                                               │
+│  # attended_value[pos] = Σ(attention_weight[pos, i] * value[i]) for all i                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Lines 222-225: Reshape and output projection                                                                         │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 222-225 in modeling_llama.py                                                                                 │
+│  attn_output = attn_output.transpose(1, 2)  # [2, 32, 12, 128] → [2, 12, 32, 128]                                    │
+│  attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)  # [2, 12, 32, 128] → [2, 12, 4096]                 │
+│  attn_output = self.o_proj(attn_output)  # [2, 12, 4096] → [2, 12, 4096]                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                             🔸 Post-Attention Processing                                             │
+│                                                                                                                      │
+│ Line 282: First residual connection                                                                                  │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 282 in modeling_llama.py                                                                                     │
+│  hidden_states = residual + hidden_states  # Element-wise addition [2, 12, 4096]                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│ Lines 285-288: MLP processing with second residual                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 285-288 in modeling_llama.py                                                                                 │
+│  residual = hidden_states  # Save for second residual                                                                │
+│  hidden_states = self.post_attention_layernorm(hidden_states)  # RMSNorm                                             │
+│  hidden_states = self.mlp(hidden_states)  # SwiGLU MLP                                                               │
+│  hidden_states = residual + hidden_states  # Second residual connection                                              │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                           🔸 SwiGLU MLP Detail (Line 139)                                            │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 139 in modeling_llama.py (LlamaMLP.forward)                                                                  │
+│  return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))                                             │
+│                                                                                                                      │
+│                                                                                                                      │
+│ SwiGLU Mathematical Breakdown:                                                                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Configuration:                                                                                                    │
+│  # hidden_size = 4096                                                                                                │
+│  # intermediate_size = 11008 (2.7x expansion)                                                                        │
+│                                                                                                                      │
+│  # Input: x = [2, 12, 4096]                                                                                          │
+│                                                                                                                      │
+│  # Step 1: Two parallel projections                                                                                  │
+│  gate_output = self.gate_proj(x)  # [2, 12, 4096] → [2, 12, 11008]                                                   │
+│  up_output = self.up_proj(x)      # [2, 12, 4096] → [2, 12, 11008]                                                   │
+│                                                                                                                      │
+│  # Step 2: Apply SwiGLU activation to gate                                                                           │
+│  # SwiGLU(x) = x * sigmoid(x) (Swish activation)                                                                     │
+│  activated_gate = gate_output * torch.sigmoid(gate_output)  # [2, 12, 11008]                                         │
+│                                                                                                                      │
+│  # Step 3: Element-wise multiplication (gating mechanism)                                                            │
+│  gated_output = activated_gate * up_output  # [2, 12, 11008]                                                         │
+│                                                                                                                      │
+│  # Step 4: Project back to hidden size                                                                               │
+│  final_output = self.down_proj(gated_output)  # [2, 12, 11008] → [2, 12, 4096]                                       │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                               PART 5: FINAL PROCESSING                                               │
+│                                                                                                                      │
+│                                         Line 581: Final layer normalization                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 581 in modeling_llama.py                                                                                     │
+│  hidden_states = self.norm(hidden_states)  # Final RMSNorm on [2, 12, 4096]                                          │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                     Line 590-595: Return encoded representations                                     │
+│                                                                                                                      │
+│                                                                                                                      │
+│  # Line 590-595 in modeling_llama.py                                                                                 │
+│  return BaseModelOutputWithPast(                                                                                     │
+│      last_hidden_state=hidden_states,  # [2, 12, 4096] - Final encoded text                                          │
+│      past_key_values=next_cache,       # None during training                                                        │
+│      hidden_states=all_hidden_states,  # None (not storing intermediate)                                             │
+│      attentions=all_self_attns,        # None (not storing attention weights)                                        │
+│  )                                                                                                                   │
+│                                                                                                                      │
+│                                                                                                                      │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── │
+│                                                                                                                      │
+│                                          🎯 COMPLETE COMPUTATIONAL SUMMARY                                           │
+│                                                                                                                      │
+│                                            Input → Output Transformation                                             │
+│                                                                                                                      │
+│  • Input: Text embeddings [2, 12, 4096]                                                                              │
+│  • Processing: 32 decoder layers × (RMSNorm + MultiHeadAttention + RMSNorm + SwiGLU + Residuals)                     │
+│  • Output: Contextualized text representations [2, 12, 4096]                                                         │
+│                                                                                                                      │
+│                                        Key Mathematical Operations Per Layer                                         │
+│                                                                                                                      │
+│  1 RMSNorm: x * rsqrt(mean(x²) + ε) * weight                                                                         │
+│  2 Multi-Head Attention: softmax(QK^T/√d) × V                                                                        │
+│  3 RoPE: (q * cos) + (rotate_half(q) * sin)                                                                          │
+│  4 SwiGLU: down_proj(swish(gate_proj(x)) * up_proj(x))                                                               │
+│  5 Residual: output = input + transformation(input)                                                                  │
+│                                                                                                                      │
+│                                              Total Parameters Involved                                               │
+│                                                                                                                      │
+│  • Embedding: 32,000 × 4,096 = 131M parameters                                                                       │
+│  • Each Layer: ~110M parameters (attention + MLP)                                                                    │
+│  • 32 Layers: 32 × 110M = 3.52B parameters                                                                           │
+│  • Total LLaMA-7B: ~7B parameters                                                                                    │
+│                                                                                                                      │
+│                                               Computational Complexity                                               │
+│                                                                                                                      │
+│  • Attention: O(n² × d) where n=sequence_length, d=hidden_size                                                       │
+│  • MLP: O(n × d × intermediate_size)                                                                                 │
+│  • Total per layer: O(n² × d + n × d²)                                                                               │
+│                                                                                                                      │
+│ This detailed analysis shows how each text token gets progressively encoded through 32 layers of sophisticated       │
+│ transformations, building rich contextual representations while maintaining causal constraints for autoregressive    │
+│ generation.                                                                                                          │
+╰─────────────
