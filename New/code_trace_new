@@ -1,0 +1,192 @@
+Of course. Here is the exact code trace that follows the training flow diagram, showing which lines in the codebase correspond to each step.
+
+  The trace begins inside the main training loop, specifically when a new batch of samples is processed.
+
+  1. Inputs
+
+  The process starts within the forward method of the MiniGPT4 class. The necessary inputs are all available here.
+
+   * File: xraygpt/models/mini_gpt4.py
+   * Method: forward
+   * Code:
+
+   1     def forward(self, samples):
+   2         # `samples` is the input dictionary containing:
+   3         # - samples["image"]: The input X-ray image tensor
+   4         # - samples["caption"]: The ground-truth text summary
+   5 
+   6         # `self.prompt_list` and `self.query_tokens` are available as class attributes.
+   7         image = samples["image"]
+   8         # ...
+
+  2. Vision Encoder
+
+  The input image is passed through the vision model to get patch embeddings.
+
+   * File: xraygpt/models/mini_gpt4.py
+   * Method: encode_img
+   * Code:
+
+   1     def encode_img(self, image):
+   2         # ...
+   3         with self.maybe_autocast():
+   4             # The Vision Transformer and LayerNorm are called to get vision features.
+   5             image_embeds = self.ln_vision(self.visual_encoder(image)).to(device)
+   * Output Shape: image_embeds will have a shape of [batch, 257, 1408].
+
+  3. Q-Former (BERT)
+
+  The vision features and the learnable query tokens are fed into the Q-Former.
+
+   * File: xraygpt/models/mini_gpt4.py
+   * Method: encode_img
+   * Code:
+
+    1     def encode_img(self, image):
+    2         # ...
+    3         # The learnable query tokens are prepared.
+    4         query_tokens = self.query_tokens.expand(image_embeds.shape[0], -1, -1)
+    5 
+    6         # The Q-Former (a BERT model) is called.
+    7         query_output = self.Qformer.bert(
+    8             query_embeds=query_tokens,
+    9             encoder_hidden_states=image_embeds,
+   10             encoder_attention_mask=image_atts,
+   11             return_dict=True,
+   12         )
+   * Internal Flow: This call to self.Qformer.bert executes the logic in xraygpt/models/Qformer.py. It iterates through 12 BertLayer modules, each performing
+     self-attention on the query tokens and cross-attention where the queries attend to the image_embeds.
+   * Output Shape: query_output.last_hidden_state will have a shape of [batch, 32, 768].
+
+  4. LLaMA Projection Layer
+
+  The output of the Q-Former is projected to match the LLaMA model's dimension.
+
+   * File: xraygpt/models/mini_gpt4.py
+   * Method: encode_img
+   * Code:
+
+   1     def encode_img(self, image):
+   2         # ...
+   3         # The projection layer is applied.
+   4         inputs_llama = self.llama_proj(query_output.last_hidden_state)
+   5         return inputs_llama, atts_llama
+   * Output Shape: inputs_llama will have a shape of [batch, 32, 4096].
+
+  5. Text Processing & Final Assembly
+
+  This section covers the preparation of all text-based embeddings and their concatenation with the image embeddings.
+
+  a. Prompt Processing
+
+   * File: xraygpt/models/mini_gpt4.py
+   * Method: prompt_wrap
+   * Code:
+
+    1     def prompt_wrap(self, img_embeds, atts_img, prompt):
+    2         # ...
+    3         p_before, p_after = prompt.split('<ImageHere>')
+    4 
+    5         # Tokenize the text before and after the placeholder.
+    6         p_before_tokens = tokenize_text(p_before, self.llama_tokenizer, img_embeds.device, add_special_tokens=False, max_txt_len=self.max_txt_len)
+    7         p_after_tokens = tokenize_text(p_after, self.llama_tokenizer, img_embeds.device, add_special_tokens=False, max_txt_len=self.max_txt_len)
+    8 
+    9         # Embed the prompt tokens.
+   10         p_before_embeds = embed_text(p_before_tokens.input_ids, self.llama_model).expand(batch_size, -1, -1)
+   11         p_after_embeds = embed_text(p_after_tokens.input_ids, self.llama_model).expand(batch_size, -1, -1)
+
+  b. Target Caption Processing
+
+   * File: xraygpt/models/mini_gpt4py
+   * Method: forward
+   * Code:
+
+   1     def forward(self, samples):
+   2         # ...
+   3         text = [t + self.end_sym for t in samples["caption"]]
+   4 
+   5         # Tokenize the ground-truth captions.
+   6         to_regress_tokens = tokenize_text(text, self.llama_tokenizer, image.device, max_txt_len=self.max_txt_len)
+
+  c. Embedding Concatenation
+
+   * File: xraygpt/models/mini_gpt4.py
+   * Method: forward
+   * Code:
+
+    1     def forward(self, samples):
+    2         # ...
+    3         # Embed the BOS and target caption tokens.
+    4         bos_embeds = embed_text(bos, self.llama_model)
+    5         to_regress_embeds = embed_text(to_regress_tokens.input_ids, self.llama_model)
+    6 
+    7         # Concatenate all embeddings into a single sequence for the LLaMA model.
+    8         # Note: `img_embeds` here is the output from `prompt_wrap`.
+    9         inputs_embeds = torch.cat([bos_embeds, img_embeds, to_regress_embeds], dim=1)
+   10         attention_mask = torch.cat([atts_bos, atts_img, to_regress_tokens.attention_mask], dim=1)
+
+  d. Target labels Preparation
+
+   * File: xraygpt/models/mini_gpt4py
+   * Method: forward
+   * Code:
+
+    1     def forward(self, samples):
+    2         # ...
+    3         # Create the labels for loss calculation, masking out padding tokens.
+    4         targets = to_regress_tokens.input_ids.masked_fill(
+    5             to_regress_tokens.input_ids == self.llama_tokenizer.pad_token_id, -100
+    6         )
+    7 
+    8         # Create a mask of -100s for the prompt and image parts of the sequence.
+    9         empty_targets = (
+   10             torch.ones([atts_img.shape[0], atts_img.shape[1]+1],
+   11                        dtype=torch.long).to(image.device).fill_(-100)
+   12         )
+   13         # Concatenate the masks to create the final labels tensor.
+   14         targets = torch.cat([empty_targets, targets], dim=1)
+
+  6. LLaMA Model Forward Pass & Loss Calculation
+
+  The complete input sequence is passed to LLaMA to get the loss.
+
+   * File: xraygpt/models/mini_gpt4.py
+   * Method: forward
+   * Code:
+
+    1     def forward(self, samples):
+    2         # ...
+    3         with self.maybe_autocast():
+    4             outputs = self.llama_model(
+    5                 inputs_embeds=inputs_embeds,
+    6                 attention_mask=attention_mask,
+    7                 return_dict=True,
+    8                 labels=targets, # Pass the prepared labels
+    9             )
+   10         loss = outputs.loss
+   11         return {"loss": loss}
+   * Internal Flow: The LlamaForCausalLM.forward method in xraygpt/models/modeling_llama.py receives the inputs_embeds and labels. It performs its forward pass and,
+     because labels are provided, it automatically computes the CrossEntropyLoss between its output logits and the labels, returning the final scalar loss.
+
+  7. Backpropagation & Optimization
+
+  The calculated loss is used to update the model's trainable weights.
+
+   * File: xraygpt/tasks/base_task.py
+   * Method: _train_inner_loop
+   * Code:
+
+    1     def _train_inner_loop(...):
+    2         # ... (forward pass to get loss) ...
+    3         if use_amp:
+    4             scaler.scale(loss).backward()
+    5         else:
+    6             loss.backward()
+    7 
+    8         if (i + 1) % accum_grad_iters == 0:
+    9             if use_amp:
+   10                 scaler.step(optimizer)
+   11                 scaler.update()
+   12             else:
+   13                 optimizer.step()
+   14             optimizer.zero_grad()
