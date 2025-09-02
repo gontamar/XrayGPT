@@ -1,0 +1,102 @@
+Of course. Here is a diagram representing the precise, step-by-step data flow for a single training batch in the XrayGPT codebase.
+
+     1 TRAINING STEP START
+     2 -------------------
+     3 
+     4 Inputs:
+     5 - `samples["image"]`      (X-ray Image Batch)
+     6 - `samples["caption"]`    (Ground-Truth Summary Batch)
+     7 - `self.prompt_list`      (List of prompt templates)
+     8 - `self.query_tokens`     (Learnable Q-Former queries)
+     9 
+    10 
+    11        samples["image"] [batch, 3, 224, 224]
+    12               │
+    13               ▼
+    14 +---------------------------------+
+    15 | Vision Encoder (eva_vit.py)     |
+    16 | - `self.visual_encoder(image)`  |
+    17 | - `self.ln_vision(...)`         |
+    18 +---------------------------------+
+    19               │
+    20               ▼
+    21 Vision Features [batch, 257, 1408] │ self.query_tokens [1, 32, 768]
+    22               │                    │
+    23               └---------┐    ┌-----┘
+    24                         │    │
+    25                         ▼    ▼
+    26 +-----------------------------------------------------------------+
+    27 | Q-Former (BERT in Qformer.py)                                   |
+    28 | - `self.Qformer.bert(`                                          |
+    29 |     `query_embeds`=[batch, 32, 768],                            |
+    30 |     `encoder_hidden_states`=[batch, 257, 1408]                  |
+    31 |   `)`                                                           |
+    32 |                                                                 |
+    33 |   For each of the 12 BERT Layers:                               |
+    34 |   1. Self-Attention: Query tokens attend to each other.         |
+    35 |   2. Cross-Attention: Query tokens attend to Vision Features.   |
+    36 |   3. Feed-Forward Network.                                      |
+    37 +-----------------------------------------------------------------+
+    38               │
+    39               ▼
+    40 Processed Image Embeds [batch, 32, 768]
+    41               │
+    42               ▼
+    43 +---------------------------------+
+    44 | LLaMA Projection Layer          |
+    45 | - `self.llama_proj(...)`        |
+    46 +---------------------------------+
+    47               │
+    48               ▼
+    49 Projected Image Embeds (`img_embeds`) [batch, 32, 4096]
+    50 
+    51 
+    52 ------------------- TEXT PROCESSING & FINAL ASSEMBLY -------------------
+    53 
+    54 `samples["caption"]` (List of strings)      `prompt` (Randomly chosen string)
+    55               │                                       │
+    56               ▼                                       ▼
+    57 +---------------------------+      +--------------------------------------+
+    58 | `tokenize_text(...)`      |      | `prompt.split('<ImageHere>')`        |
+    59 | (in text_utils.py)        |      | `tokenize_text(p_before)` & `p_after`|
+    60 +---------------------------+      +--------------------------------------+
+    61               │                                       │
+    62               ▼                                       ▼
+    63 `to_regress_tokens` [batch, T, 4096]   Prompt Tokens & Embeddings
+    64 (Target caption embeddings)            (p_before_embeds, p_after_embeds)
+    65               │
+    66               └----------------------------------┐
+    67                                                  │
+    68 `bos_embeds` [batch, 1, 4096]                    │ Projected Image Embeds (`img_embeds`)
+    69  (BOS Token Embedding)                           │ [batch, 32, 4096]
+    70               │                                  │             │
+    71               ▼                                  ▼             ▼
+    72 +---------------------------------------------------------------------------------+
+    73 | Embedding Concatenation (`torch.cat`)                                           |
+    74 | `inputs_embeds` = [bos] + [p_before] + [img_embeds] + [p_after] + [caption]       |
+    75 +---------------------------------------------------------------------------------+
+    76               │
+    77               │ `inputs_embeds` [batch, 1 + T_prompt + 32 + T_caption, 4096]
+    78               │
+    79               │ `labels` (Target tokens with -100 for non-caption parts)
+    80               │
+    81               ▼
+    82 +---------------------------------------------------------------------------------+
+    83 | LLaMA Model Forward Pass (`LlamaForCausalLM.forward`)                           |
+    84 | - Processes `inputs_embeds` via its Transformer layers.                         |
+    85 | - Predicts logits for the next token at each position.                          |
+    86 | - Internally computes CrossEntropyLoss between logits and `labels`.             |
+    87 +---------------------------------------------------------------------------------+
+    88               │
+    89               ▼
+    90          Scalar Loss
+    91               │
+    92               ▼
+    93 +---------------------------------------------------------------------------------+
+    94 | Backpropagation & Optimization                                                  |
+    95 | - `loss.backward()`: Computes gradients for `self.llama_proj` weights.          |
+    96 | - `optimizer.step()`: Updates `self.llama_proj` weights.                        |
+    97 +---------------------------------------------------------------------------------+
+    98               │
+    99               ▼
+   100         TRAINING STEP END
