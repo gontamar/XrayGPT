@@ -1,0 +1,35 @@
+Task Category,Task Name,Description,File/Script Location,Dataset/Model Links,Configuration Files,Notes
+Dataset Preparation,MIMIC-CXR Dataset,Download and prepare MIMIC-CXR chest X-ray dataset with 377k images and 227k reports,"README-DATASET.md
+xraygpt/datasets/datasets/mimic_dataset.py","Raw Dataset: https://physionet.org/content/mimic-cxr-jpg/2.0.0/
+Preprocessed Annotations: https://mbzuaiac-my.sharepoint.com/:u:/g/personal/omkar_thawakar_mbzuai_ac_ae/EZ6500itBIVMnD7sUztdMQMBVWVe7fuF7ta4FV78hpGSwg?e=wyL7Z7",xraygpt/configs/datasets/mimic/defaults.yaml,"Contains 114,690 filtered reports with 241k training images after preprocessing"
+Dataset Preparation,OpenI Dataset,Download and prepare OpenI chest X-ray dataset for fine-tuning,"README-DATASET.md
+xraygpt/datasets/datasets/openi_dataset.py","Raw Dataset: https://openi.nlm.nih.gov/faq#collection
+Preprocessed Annotations: https://mbzuaiac-my.sharepoint.com/:u:/g/personal/omkar_thawakar_mbzuai_ac_ae/EVYGprPyzdhOjFlQ2aNJbykBj49SwTGBYmC1uJ7TMswaVQ?e=qdqS8U",xraygpt/configs/datasets/openi/defaults.yaml,"Contains 3,403 high-quality summaries for training"
+Data Cleaning,Report Preprocessing,Clean and preprocess radiology reports using GPT-3.5-turbo,README-DATASET.md,GPT-3.5-turbo API for preprocessing,N/A,"Removes incomplete reports, comparisons to prior history, de-identified symbols"
+Data Cleaning,Summary Generation,Generate interactive and clean summaries from free-text radiology reports,README-DATASET.md,Generated ~217k summaries from MIMIC-CXR and OpenI,N/A,Combines findings and impressions into high-quality summaries
+Model Weights,Vicuna Base Model,Download pre-trained Vicuna-7B weights (v1) fine-tuned on medical data,"README.md
+xraygpt/configs/models/xraygpt.yaml",Vicuna Weights: https://mbzuaiac-my.sharepoint.com/:u:/g/personal/omkar_thawakar_mbzuai_ac_ae/EWoMYn3x7sdEnM2CdJRwWZgBCkMpLM03bk4GR5W0b3KIQQ?e=q6hEBz,xraygpt/configs/models/xraygpt.yaml (Line 16),Fine-tuned on 100k patient-doctor conversations and 30k radiology conversations
+Model Weights,Vicuna Fine-tuning Data,Download curated radiology and medical healthcare conversational samples,README.md,"Radiology Data: https://mbzuaiac-my.sharepoint.com/:u:/g/personal/omkar_thawakar_mbzuai_ac_ae/EXsChX3eN_lJgcrV2fLUU0QBQalFkDtp-mlHNixta_hc4w
+Medical Healthcare: https://mbzuaiac-my.sharepoint.com/:u:/g/personal/omkar_thawakar_mbzuai_ac_ae/Ecm7-uxj045DhHqZTSBsZi4B2Ld77tE-uB7SvvmLNmCW1Q?e=t5YLgi",N/A,For fine-tuning Vicuna on domain-specific medical data
+Model Weights,MiniGPT-4 Checkpoint,Download pre-trained MiniGPT-4 checkpoint,README.md,MiniGPT-4 Checkpoint: https://drive.google.com/file/d/1RY9jV0dyqLX-o38LrumkKRh6Jtaop58R/view?pli=1,train_configs/xraygpt_openi_finetune.yaml (Line 9),Required for model initialization
+Model Weights,XRayGPT Pre-trained Model,Download final trained XRayGPT model weights,README.md,XRayGPT Model: https://mbzuaiac-my.sharepoint.com/:u:/g/personal/omkar_thawakar_mbzuai_ac_ae/EbGJZmueJkFAstU965buWs8B7T8tLcks7N-P79gsExRH0Q?e=mVASdV,eval_configs/xraygpt_eval.yaml (Line 10),Final trained model for inference and evaluation
+Model Training,MIMIC Pre-training Stage,First stage training on MIMIC dataset for image-text alignment,train.py,Uses MIMIC dataset prepared above,train_configs/xraygpt_mimic_pretrain.yaml,Command: torchrun --nproc-per-node NUM_GPU train.py --cfg-path train_configs/xraygpt_mimic_pretrain.yaml
+Model Training,OpenI Fine-tuning Stage,Second stage fine-tuning on high-quality OpenI dataset,train.py,Uses OpenI dataset prepared above,train_configs/xraygpt_openi_finetune.yaml,Command: torchrun --nproc-per-node NUM_GPU train.py --cfg-path train_configs/xraygpt_openi_finetune.yaml
+Model Validation,Model Testing,Test trained model performance and generate predictions,test.py,Uses evaluation dataset,eval_configs/xraygpt_eval.yaml,Command: python test.py --cfg-path eval_configs/xraygpt_eval.yaml
+Model Validation,Demo Evaluation,Interactive demo for testing model responses on X-ray images,demo.py,Uses pre-trained XRayGPT model,eval_configs/xraygpt_eval.yaml,Command: python demo.py --cfg-path eval_configs/xraygpt_eval.yaml --gpu-id 0
+Model Validation,Online Demo,Web-based demo for public testing,README.md,"Demo Links: https://e764abfa8fdc8ad0c8.gradio.live
+https://61adec76d380025b25.gradio.live
+https://c1a70c1631c7cc54cd.gradio.live",N/A,Live Gradio demos for public access
+Environment Setup,Dependencies Installation,Install required Python packages and dependencies,"README.md
+env.yml
+xraygpt_requirements.txt",GitHub Repository: https://github.com/mbzuai-oryx/XrayGPT,env.yml or xraygpt_requirements.txt,conda env create -f env.yml OR pip install -r xraygpt_requirements.txt
+Environment Setup,Project Structure,Set up proper directory structure for datasets and models,README.md,N/A,All config files in xraygpt/configs/,Ensure proper paths in configuration files
+Model Architecture,Vision Encoder,MedCLIP-based medical visual encoder for X-ray image processing,"xraygpt/models/eva_vit.py
+xraygpt/models/blip2.py",MedCLIP: https://github.com/RyanWangZf/MedCLIP,xraygpt/configs/models/xraygpt.yaml,Frozen during training for stability
+Model Architecture,Language Model,Vicuna-7B language model fine-tuned on medical conversations,"xraygpt/models/mini_gpt4.py
+xraygpt/models/modeling_llama.py",Vicuna: https://github.com/lm-sys/FastChat,xraygpt/configs/models/xraygpt.yaml,Based on LLaMA architecture
+Model Architecture,Q-Former,Query transformer for vision-language alignment,xraygpt/models/Qformer.py,BLIP-2: https://huggingface.co/docs/transformers/main/model_doc/blip-2,xraygpt/configs/models/xraygpt.yaml,32 query tokens for cross-modal alignment
+Evaluation Metrics,Accuracy Assessment,Evaluate model accuracy on medical report generation,test.py,Standard evaluation datasets,eval_configs/xraygpt_eval.yaml,Compare generated reports with ground truth
+Evaluation Metrics,Clinical Validation,Validate clinical relevance and accuracy of generated reports,README.md,Medical expert evaluation,N/A,Requires domain expert assessment
+Paper Reference,Technical Paper,Research paper with detailed methodology and results,README.md,ArXiv Paper: https://arxiv.org/abs/2306.07971,N/A,Published at BIONLP-ACL 2024
+Paper Reference,YouTube Demo,Video demonstration of XRayGPT capabilities,README.md,YouTube: https://youtu.be/-zzq7bzbUuY,N/A,Visual demonstration of model performance
