@@ -1,23 +1,26 @@
+
 # This script is based on https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py
 
 """ PyTorch LLaMA model."""
-import math  # Provides mathematical functions like sqrt
-from typing import List, Optional, Tuple, Union  # Type hinting for better code clarity
+import math
+from typing import List, Optional, Tuple, Union
 
-import torch  # Main PyTorch library for tensor operations
-import torch.utils.checkpoint  # For memory-efficient training via checkpointing
-from torch import nn  # Neural network module
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss  # Common loss functions
+import torch
+import torch.utils.checkpoint
+from torch import nn
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from transformers.activations import ACT2FN  # Map activation function names to implementations
-from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast  # Standard output types for models
-from transformers.modeling_utils import PreTrainedModel  # Base class for pretrained models
-from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings  # Utilities for logging and docstring management
-from transformers.models.llama.configuration_llama import LlamaConfig  # Llama model configuration class
+from transformers.activations import ACT2FN
+from transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
+from transformers.modeling_utils import PreTrainedModel
+from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
+from transformers.models.llama.configuration_llama import LlamaConfig
 
-logger = logging.get_logger(__name__)  # Set up a logger for this module
 
-_CONFIG_FOR_DOC = "LlamaConfig"  # Reference for docstring documentation
+logger = logging.get_logger(__name__)
+
+_CONFIG_FOR_DOC = "LlamaConfig"
+
 
 # Copied from transformers.models.bart.modeling_bart._make_causal_mask
 def _make_causal_mask(
@@ -25,77 +28,76 @@ def _make_causal_mask(
 ):
     """
     Make causal mask used for bi-directional self-attention.
-    Prevents tokens from attending to future tokens.
     """
-    bsz, tgt_len = input_ids_shape  # batch size and sequence length
-    mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)  # Fill with large negative value
-    mask_cond = torch.arange(mask.size(-1), device=device)  # Indices for mask
-    mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)  # Set lower triangle to 0 (allowed)
-    mask = mask.to(dtype)  # Cast to desired dtype
+    bsz, tgt_len = input_ids_shape
+    mask = torch.full((tgt_len, tgt_len), torch.tensor(torch.finfo(dtype).min, device=device), device=device)
+    mask_cond = torch.arange(mask.size(-1), device=device)
+    mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+    mask = mask.to(dtype)
 
     if past_key_values_length > 0:
-        # Extend mask for past cached tokens
         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
-    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)  # Add batch and head dims
+    return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
+
 
 # Copied from transformers.models.bart.modeling_bart._expand_mask
 def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
     """
     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
-    Used for attention mechanisms.
     """
     bsz, src_len = mask.size()
-    tgt_len = tgt_len if tgt_len is not None else src_len  # Default target length = source length
+    tgt_len = tgt_len if tgt_len is not None else src_len
 
-    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)  # Expand along required dims
+    expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
 
-    inverted_mask = 1.0 - expanded_mask  # Invert mask: 1 -> 0, 0 -> 1
+    inverted_mask = 1.0 - expanded_mask
 
-    return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)  # Large negative for masked
+    return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+
 
 class LlamaRMSNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         """
-        Root Mean Square LayerNorm (RMSNorm), similar to T5LayerNorm.
+        LlamaRMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = nn.Parameter(torch.ones(hidden_size))  # Learnable weight
-        self.variance_epsilon = eps  # Small value for numerical stability
+        self.weight = nn.Parameter(torch.ones(hidden_size))
+        self.variance_epsilon = eps
 
     def forward(self, hidden_states):
-        variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)  # Compute variance
-        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)  # Normalize
+        variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
 
-        # If using half-precision weights, cast result accordingly
+        # convert into half-precision if necessary
         if self.weight.dtype in [torch.float16, torch.bfloat16]:
             hidden_states = hidden_states.to(self.weight.dtype)
 
-        return self.weight * hidden_states  # Scale by learnable weight
+        return self.weight * hidden_states
+
 
 class LlamaRotaryEmbedding(torch.nn.Module):
     def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
-        """
-        Implements Rotary Position Embeddings (RoPE) for attention mechanisms.
-        """
         super().__init__()
-        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))  # Inverse frequencies
-        self.register_buffer("inv_freq", inv_freq)  # Register as persistent buffer
+        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float().to(device) / dim))
+        self.register_buffer("inv_freq", inv_freq)
 
-        # Precompute cos/sin caches for efficiency
+        # Build here to make `torch.jit.trace` work.
         self.max_seq_len_cached = max_position_embeddings
         t = torch.arange(self.max_seq_len_cached, device=self.inv_freq.device, dtype=self.inv_freq.dtype)
         freqs = torch.einsum("i,j->ij", t, self.inv_freq)
-        emb = torch.cat((freqs, freqs), dim=-1)  # Double for even/odd split
+        # Different from paper, but it uses a different permutation in order to obtain the same calculation
+        emb = torch.cat((freqs, freqs), dim=-1)
         self.register_buffer("cos_cached", emb.cos()[None, None, :, :], persistent=False)
         self.register_buffer("sin_cached", emb.sin()[None, None, :, :], persistent=False)
 
     def forward(self, x, seq_len=None):
         # x: [bs, num_attention_heads, seq_len, head_size]
-        # Build new caches if sequence length exceeds cached length
+        # This `if` block is unlikely to be run after we build sin/cos in `__init__`. Keep the logic here just in case.
         if seq_len > self.max_seq_len_cached:
             self.max_seq_len_cached = seq_len
             t = torch.arange(self.max_seq_len_cached, device=x.device, dtype=self.inv_freq.dtype)
             freqs = torch.einsum("i,j->ij", t, self.inv_freq)
+            # Different from paper, but it uses a different permutation in order to obtain the same calculation
             emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
             self.register_buffer("cos_cached", emb.cos()[None, None, :, :], persistent=False)
             self.register_buffer("sin_cached", emb.sin()[None, None, :, :], persistent=False)
@@ -104,23 +106,23 @@ class LlamaRotaryEmbedding(torch.nn.Module):
             self.sin_cached[:, :, :seq_len, ...].to(dtype=x.dtype),
         )
 
+
 def rotate_half(x):
-    """Rotates half the hidden dims of the input (needed for RoPE)."""
-    x1 = x[..., : x.shape[-1] // 2]  # First half
-    x2 = x[..., x.shape[-1] // 2 :]  # Second half
-    return torch.cat((-x2, x1), dim=-1)  # Rotate halves
+    """Rotates half the hidden dims of the input."""
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2 :]
+    return torch.cat((-x2, x1), dim=-1)
+
 
 def apply_rotary_pos_emb(q, k, cos, sin, position_ids):
-    """
-    Applies rotary position embedding to queries and keys.
-    """
     gather_indices = position_ids[:, None, :, None]  # [bs, 1, seq_len, 1]
-    gather_indices = gather_indices.repeat(1, cos.shape[1], 1, cos.shape[3])  # Match head dimension
-    cos = torch.gather(cos.repeat(gather_indices.shape[0], 1, 1, 1), 2, gather_indices)  # Gather cosines for positions
-    sin = torch.gather(sin.repeat(gather_indices.shape[0], 1, 1, 1), 2, gather_indices)  # Gather sines for positions
-    q_embed = (q * cos) + (rotate_half(q) * sin)  # Apply RoPE to queries
-    k_embed = (k * cos) + (rotate_half(k) * sin)  # Apply RoPE to keys
+    gather_indices = gather_indices.repeat(1, cos.shape[1], 1, cos.shape[3])
+    cos = torch.gather(cos.repeat(gather_indices.shape[0], 1, 1, 1), 2, gather_indices)
+    sin = torch.gather(sin.repeat(gather_indices.shape[0], 1, 1, 1), 2, gather_indices)
+    q_embed = (q * cos) + (rotate_half(q) * sin)
+    k_embed = (k * cos) + (rotate_half(k) * sin)
     return q_embed, k_embed
+
 
 class LlamaMLP(nn.Module):
     def __init__(
@@ -129,28 +131,25 @@ class LlamaMLP(nn.Module):
         intermediate_size: int,
         hidden_act: str,
     ):
-        """
-        Multi-layer perceptron block used in Transformer decoder.
-        """
         super().__init__()
-        self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)  # Gating projection
-        self.down_proj = nn.Linear(intermediate_size, hidden_size, bias=False)  # Down-project to hidden size
-        self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)  # Up-project to intermediate size
-        self.act_fn = ACT2FN[hidden_act]  # Activation function
+        self.gate_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.down_proj = nn.Linear(intermediate_size, hidden_size, bias=False)
+        self.up_proj = nn.Linear(hidden_size, intermediate_size, bias=False)
+        self.act_fn = ACT2FN[hidden_act]
 
     def forward(self, x):
-        # Gated MLP: activation(gate_proj(x)) * up_proj(x) -> down_proj
         return self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
 
+
 class LlamaAttention(nn.Module):
-    """Multi-headed self-attention mechanism, as described in 'Attention Is All You Need'."""
+    """Multi-headed attention from 'Attention Is All You Need' paper"""
 
     def __init__(self, config: LlamaConfig):
         super().__init__()
-        self.config = config  # Store config
+        self.config = config
         self.hidden_size = config.hidden_size
         self.num_heads = config.num_attention_heads
-        self.head_dim = self.hidden_size // self.num_heads  # Dimension per head
+        self.head_dim = self.hidden_size // self.num_heads
         self.max_position_embeddings = config.max_position_embeddings
 
         if (self.head_dim * self.num_heads) != self.hidden_size:
@@ -158,48 +157,45 @@ class LlamaAttention(nn.Module):
                 f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
                 f" and `num_heads`: {self.num_heads})."
             )
-        # Linear layers for Q, K, V projections
         self.q_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
         self.k_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
         self.v_proj = nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=False)
-        self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)  # Output projection
+        self.o_proj = nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
         self.rotary_emb = LlamaRotaryEmbedding(self.head_dim, max_position_embeddings=self.max_position_embeddings)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
-        # Reshape tensor for multi-head attention: [batch, seq_len, num_heads * head_dim] -> [batch, num_heads, seq_len, head_dim]
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
 
     def forward(
         self,
-        hidden_states: torch.Tensor,  # Input tensor
-        attention_mask: Optional[torch.Tensor] = None,  # Mask for attention
-        position_ids: Optional[torch.LongTensor] = None,  # Position IDs for rotary embedding
-        past_key_value: Optional[Tuple[torch.Tensor]] = None,  # For caching past K,V values
-        output_attentions: bool = False,  # Whether to return attention weights
-        use_cache: bool = False,  # Whether to cache key/values for generation
+        hidden_states: torch.Tensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_value: Optional[Tuple[torch.Tensor]] = None,
+        output_attentions: bool = False,
+        use_cache: bool = False,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
-        bsz, q_len, _ = hidden_states.size()  # Extract batch and seq length
+        bsz, q_len, _ = hidden_states.size()
 
-        # Project hidden states to Q, K, V
         query_states = self.q_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
         key_states = self.k_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
         value_states = self.v_proj(hidden_states).view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
 
         kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
-            kv_seq_len += past_key_value[0].shape[-2]  # Add past length if using cache
-        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)  # Get rotary embedding
+            kv_seq_len += past_key_value[0].shape[-2]
+        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
         # [bsz, nh, t, hd]
 
         if past_key_value is not None:
-            # Concatenate past K,V values for caching in generation
+            # reuse k, v, self_attention
             key_states = torch.cat([past_key_value[0], key_states], dim=2)
             value_states = torch.cat([past_key_value[1], value_states], dim=2)
 
-        past_key_value = (key_states, value_states) if use_cache else None  # Store for future steps
+        past_key_value = (key_states, value_states) if use_cache else None
 
-        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)  # Scaled dot-product attention
+        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / math.sqrt(self.head_dim)
 
         if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
             raise ValueError(
@@ -212,12 +208,12 @@ class LlamaAttention(nn.Module):
                 raise ValueError(
                     f"Attention mask should be of size {(bsz, 1, q_len, kv_seq_len)}, but is {attention_mask.size()}"
                 )
-            attn_weights = attn_weights + attention_mask  # Mask out unwanted tokens
+            attn_weights = attn_weights + attention_mask
             attn_weights = torch.max(attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min))
 
-        # Softmax along last dimension, upcasting to fp32 for numerical stability
+        # upcast attention to fp32
         attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query_states.dtype)
-        attn_output = torch.matmul(attn_weights, value_states)  # Weighted sum over values
+        attn_output = torch.matmul(attn_weights, value_states)
 
         if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
             raise ValueError(
@@ -225,31 +221,29 @@ class LlamaAttention(nn.Module):
                 f" {attn_output.size()}"
             )
 
-        attn_output = attn_output.transpose(1, 2)  # [batch, seq_len, num_heads, head_dim]
-        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)  # Merge heads
+        attn_output = attn_output.transpose(1, 2)
+        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
 
-        attn_output = self.o_proj(attn_output)  # Final projection
+        attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
-            attn_weights = None  # Optionally return attention weights
+            attn_weights = None
 
         return attn_output, attn_weights, past_key_value
 
+
 class LlamaDecoderLayer(nn.Module):
     def __init__(self, config: LlamaConfig):
-        """
-        Single decoder layer composed of self-attention, MLP, and normalization.
-        """
         super().__init__()
         self.hidden_size = config.hidden_size
-        self.self_attn = LlamaAttention(config=config)  # Self-attention block
+        self.self_attn = LlamaAttention(config=config)
         self.mlp = LlamaMLP(
             hidden_size=self.hidden_size,
             intermediate_size=config.intermediate_size,
             hidden_act=config.hidden_act,
         )
-        self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)  # LayerNorm before attention
-        self.post_attention_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)  # LayerNorm after attention
+        self.input_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def forward(
         self,
@@ -261,13 +255,24 @@ class LlamaDecoderLayer(nn.Module):
         use_cache: Optional[bool] = False,
     ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
         """
-        Forward pass for a decoder layer.
+        Args:
+            hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            attention_mask (`torch.FloatTensor`, *optional*): attention mask of size
+                `(batch, 1, tgt_len, src_len)` where padding elements are indicated by very large negative values.
+            output_attentions (`bool`, *optional*):
+                Whether or not to return the attentions tensors of all attention layers. See `attentions` under
+                returned tensors for more detail.
+            use_cache (`bool`, *optional*):
+                If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding
+                (see `past_key_values`).
+            past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
         """
-        residual = hidden_states  # Save input for residual connection
 
-        hidden_states = self.input_layernorm(hidden_states)  # Apply LayerNorm
+        residual = hidden_states
 
-        # Self Attention block
+        hidden_states = self.input_layernorm(hidden_states)
+
+        # Self Attention
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
@@ -276,13 +281,13 @@ class LlamaDecoderLayer(nn.Module):
             output_attentions=output_attentions,
             use_cache=use_cache,
         )
-        hidden_states = residual + hidden_states  # Add skip/residual connection
+        hidden_states = residual + hidden_states
 
-        # Feed-forward block
+        # Fully Connected
         residual = hidden_states
-        hidden_states = self.post_attention_layernorm(hidden_states)  # Normalize after attention
-        hidden_states = self.mlp(hidden_states)  # Feed through MLP
-        hidden_states = residual + hidden_states  # Add skip/residual connection
+        hidden_states = self.post_attention_layernorm(hidden_states)
+        hidden_states = self.mlp(hidden_states)
+        hidden_states = residual + hidden_states
 
         outputs = (hidden_states,)
 
@@ -292,11 +297,25 @@ class LlamaDecoderLayer(nn.Module):
         if use_cache:
             outputs += (present_key_value,)
 
-        return outputs  # Return outputs for stacking in Transformer
+        return outputs
+
 
 LLAMA_START_DOCSTRING = r"""
-    ...
-"""  # Long docstring for documentation purposes
+    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
+    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
+    etc.)
+
+    This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
+    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
+    and behavior.
+
+    Parameters:
+        config ([`LlamaConfig`]):
+            Model configuration class with all the parameters of the model. Initializing with a config file does not
+            load the weights associated with the model, only the configuration. Check out the
+            [`~PreTrainedModel.from_pretrained`] method to load the model weights.
+"""
+
 
 @add_start_docstrings(
     "The bare LLaMA Model outputting raw hidden-states without any specific head on top.",
@@ -324,9 +343,70 @@ class LlamaPreTrainedModel(PreTrainedModel):
         if isinstance(module, LlamaModel):
             module.gradient_checkpointing = value
 
+
 LLAMA_INPUTS_DOCSTRING = r"""
-    ...
-"""  # Long docstring for documentation purposes
+    Args:
+        input_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`):
+            Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
+            it.
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            [What are input IDs?](../glossary#input-ids)
+        attention_mask (`torch.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
+
+            - 1 for tokens that are **not masked**,
+            - 0 for tokens that are **masked**.
+
+            [What are attention masks?](../glossary#attention-mask)
+
+            Indices can be obtained using [`AutoTokenizer`]. See [`PreTrainedTokenizer.encode`] and
+            [`PreTrainedTokenizer.__call__`] for details.
+
+            If `past_key_values` is used, optionally only the last `decoder_input_ids` have to be input (see
+            `past_key_values`).
+
+            If you want to change padding behavior, you should read [`modeling_opt._prepare_decoder_attention_mask`]
+            and modify to your needs. See diagram 1 in [the paper](https://arxiv.org/abs/1910.13461) for more
+            information on the default strategy.
+
+            - 1 indicates the head is **not masked**,
+            - 0 indicates the head is **masked**.
+        position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
+            config.n_positions - 1]`.
+
+            [What are position IDs?](../glossary#position-ids)
+        past_key_values (`tuple(tuple(torch.FloatTensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(torch.FloatTensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
+            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+
+            Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
+            blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
+
+            If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
+            don't have their past key value states given to this model) of shape `(batch_size, 1)` instead of all
+            `decoder_input_ids` of shape `(batch_size, sequence_length)`.
+        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+            Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
+            is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
+            model's internal embedding lookup matrix.
+        use_cache (`bool`, *optional*):
+            If set to `True`, `past_key_values` key value states are returned and can be used to speed up decoding (see
+            `past_key_values`).
+        output_attentions (`bool`, *optional*):
+            Whether or not to return the attentions tensors of all attention layers. See `attentions` under returned
+            tensors for more detail.
+        output_hidden_states (`bool`, *optional*):
+            Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors for
+            more detail.
+        return_dict (`bool`, *optional*):
+            Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
+"""
+
 
 @add_start_docstrings(
     "The bare LLaMA Model outputting raw hidden-states without any specific head on top.",
@@ -335,16 +415,19 @@ LLAMA_INPUTS_DOCSTRING = r"""
 class LlamaModel(LlamaPreTrainedModel):
     """
     Transformer decoder consisting of *config.num_hidden_layers* layers. Each layer is a [`LlamaDecoderLayer`]
+
+    Args:
+        config: LlamaConfig
     """
 
     def __init__(self, config: LlamaConfig):
         super().__init__(config)
-        self.padding_idx = config.pad_token_id  # Padding token ID
+        self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
 
-        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)  # Token embeddings
-        self.layers = nn.ModuleList([LlamaDecoderLayer(config) for _ in range(config.num_hidden_layers)])  # Stacked decoder layers
-        self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)  # Final normalization
+        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
+        self.layers = nn.ModuleList([LlamaDecoderLayer(config) for _ in range(config.num_hidden_layers)])
+        self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
@@ -394,7 +477,6 @@ class LlamaModel(LlamaPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
-        # Unpack config options or use defaults
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -403,7 +485,7 @@ class LlamaModel(LlamaPreTrainedModel):
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        # retrieve input_ids and inputs_embeds (only one allowed)
+        # retrieve input_ids and inputs_embeds
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time")
         elif input_ids is not None:
@@ -498,7 +580,7 @@ class LlamaModel(LlamaPreTrainedModel):
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
 
-        hidden_states = self.norm(hidden_states)  # Final normalization
+        hidden_states = self.norm(hidden_states)
 
         # add hidden states from the last decoder layer
         if output_hidden_states:
@@ -514,15 +596,13 @@ class LlamaModel(LlamaPreTrainedModel):
             attentions=all_self_attns,
         )
 
+
 class LlamaForCausalLM(LlamaPreTrainedModel):
-    """
-    LLaMA model for Causal Language Modeling (LM head on top).
-    """
     def __init__(self, config):
         super().__init__(config)
-        self.model = LlamaModel(config)  # Backbone model
+        self.model = LlamaModel(config)
 
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)  # Output logits for vocab
+        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -562,8 +642,31 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
-        Forward pass for language modeling.
-        """
+        Args:
+            labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+                Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
+                config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
+                (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
+
+        Returns:
+
+        Example:
+
+        ```python
+        >>> from transformers import AutoTokenizer, LlamaForCausalLM
+
+        >>> model = LlamaForCausalLM.from_pretrained(PATH_TO_CONVERTED_WEIGHTS)
+        >>> tokenizer = AutoTokenizer.from_pretrained(PATH_TO_CONVERTED_TOKENIZER)
+
+        >>> prompt = "Hey, are you consciours? Can you talk to me?"
+        >>> inputs = tokenizer(prompt, return_tensors="pt")
+
+        >>> # Generate
+        >>> generate_ids = model.generate(inputs.input_ids, max_length=30)
+        >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        "Hey, are you consciours? Can you talk to me?\nI'm not consciours, but I can talk to you."
+        ```"""
+
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -584,8 +687,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             return_dict=return_dict,
         )
 
-        hidden_states = outputs[0]  # Last hidden states
-        logits = self.lm_head(hidden_states)  # Project to vocabulary size
+        hidden_states = outputs[0]
+        logits = self.lm_head(hidden_states)
 
         loss = None
         if labels is not None:
@@ -598,7 +701,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             shift_labels = shift_labels.view(-1)
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
-            loss = loss_fct(shift_logits, shift_labels)  # Standard LM loss
+            loss = loss_fct(shift_logits, shift_labels)
 
         if not return_dict:
             output = (logits,) + outputs[1:]
@@ -615,11 +718,8 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
     def prepare_inputs_for_generation(
         self, input_ids, query_embeds=None, past_key_values=None, attention_mask=None, inputs_embeds=None, **kwargs
     ):
-        """
-        Prepare model inputs for text generation, handling caching and position_ids.
-        """
         if past_key_values:
-            input_ids = input_ids[:, -1:]  # Only provide last token for generation
+            input_ids = input_ids[:, -1:]
 
         position_ids = kwargs.get("position_ids", None)
         if attention_mask is not None and position_ids is None:
@@ -649,9 +749,6 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
 
     @staticmethod
     def _reorder_cache(past_key_values, beam_idx):
-        """
-        Reorder cached key/values for beam search.
-        """
         reordered_past = ()
         for layer_past in past_key_values:
             reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
